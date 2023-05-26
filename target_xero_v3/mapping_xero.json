@@ -1,0 +1,159 @@
+{
+  "ignore": ["ContactID", "InvoiceID", "ItemCode", "LineItemID"],
+  "contacts": {
+    "id": "ContactID",
+    "contactName": "Name",
+    "customerName": "Name",
+    "emailAddress": "EmailAddress",
+    "phoneNumbers": {
+      "type": "PhoneType",
+      "number": "PhoneNumber"
+    },
+    "addresses": {
+      "city": "City",
+      "state": "Region",
+      "postalCode": "PostalCode",
+      "country": "Country"
+    }
+  },
+  "invoices": {
+    "id": "InvoiceID",
+    "invoiceNumber": "InvoiceNumber",
+    "contact": {
+      "customerName": "Name",
+      "customerId": "ContactID"
+    },
+    "currency": "CurrencyCode",
+    "issueDate": "Date",
+    "dueDate": "DueDate",
+    "paidDate": "FullyPaidOnDate",
+    "subTotal": "SubTotal",
+    "totalAmount": "Total",
+    "totalDiscount": "TotalDiscount",
+    "amountDue": "AmountDue",
+    "status": "Status",
+    "updatedAt": "UpdatedDateUTC",
+    "lineItems": {
+      "id": "LineItemID",
+      "productId": "ItemCode",
+      "productName": "ItemName",
+      "description": "Description",
+      "quantity": "Quantity",
+      "unitPrice": "UnitAmount",
+      "totalPrice": "LineAmount",
+      "taxAmount": "TaxAmount",
+      "taxCode": "TaxType",
+      "accountName": "AccountCode",
+      "discount": "DiscountRate"
+    },
+    "address": {
+      "line1": "AddressLine1",
+      "line2": "AddressLine2",
+      "city": "City",
+      "postalCode": "PostalCode"
+    }
+  },
+  "bills": {
+    "id": "InvoiceID",
+    "invoiceNumber": "InvoiceNumber",
+    "contact": {
+      "vendorName": "Name",
+      "vendorNum": "ContactID"
+    },
+    "currency": "CurrencyCode",
+    "issueDate": "Date",
+    "dueDate": "DueDate",
+    "paidDate": "FullyPaidOnDate",
+    "subTotal": "SubTotal",
+    "totalAmount": "Total",
+    "totalDiscount": "TotalDiscount",
+    "amountDue": "AmountDue",
+    "status": "Status",
+    "updatedAt": "UpdatedDateUTC",
+    "lineItems": {
+      "id": "LineItemID",
+      "productId": "ItemCode",
+      "productName": "ItemName",
+      "description": "Description",
+      "quantity": "Quantity",
+      "unitPrice": "UnitAmount",
+      "totalPrice": "LineAmount",
+      "taxAmount": "TaxAmount",
+      "taxCode": "TaxType",
+      "accountName": "AccountCode",
+      "discount": "DiscountRate"
+    },
+    "address": {
+      "line1": "AddressLine1",
+      "line2": "AddressLine2",
+      "city": "City",
+      "postalCode": "PostalCode"
+    }
+  },
+  "items": {
+    "name": "Name",
+    "code": "Code",
+    "updatedAt": "UpdatedDateUTC",
+    "billItem": {
+      "unitPrice": "UnitPrice",
+      "accountId": "AccountCode"
+    },
+    "invoiceItem": {
+      "unitPrice": "UnitPrice",
+      "accountId": "COGSAccountCode"
+    }
+  },
+  "credit_notes": {
+    "customerRef": {
+      "customerName": "customerName"
+    },
+    "issueDate": "Date",
+    "currency": "CurrencyCode",
+    "currencyRate": "CurrencyRate",
+    "lineItems": {
+      "description": "Description",
+      "quantity": "Quantity",
+      "unitPrice": "UnitAmount",
+      "accountName": "AccountCode"
+    }
+  },
+  "tax_rates": {
+    "name": "Name",
+    "rate": "Rate",
+    "ReportTaxType": "TaxType"
+  },
+  "quotes": {
+    "id": "QuoteID",
+    "terms": "Terms",
+    "invoiceNumber": "QuoteNumber",
+    "itemType": "LineAmountTypes",
+    "reference": "Reference",
+    "contact": {
+      "customerName": "Name",
+      "customerId": "ContactID"
+    },
+    "currency": "CurrencyCode",
+    "issueDate": "Date",
+    "expiryDate": "ExpiryDate",
+    "subTotal": "SubTotal",
+    "totalAmount": "Total",
+    "totalDiscount": "TotalDiscount",
+    "amountDue": "AmountDue",
+
+    "updatedAt": "UpdatedDateUTC",
+    "lineItems": {
+      "id": "LineItemID",
+      "productId": "ItemCode",
+      "productName": "ItemName",
+      "description": "Description",
+      "quantity": "Quantity",
+      "discountAmount": "DiscountRate",
+      "unitPrice": "UnitAmount"
+    },
+    "totalTaxAmount": "TotalTax",
+    "taxCode": "TaxType",
+    "discount": "TotalDiscount",
+    "title": "Title",
+    "summary": "Summary"
+  }
+}
