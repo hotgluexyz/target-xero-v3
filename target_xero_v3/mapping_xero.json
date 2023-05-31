@@ -10,6 +10,9 @@
       "number": "PhoneNumber"
     },
     "addresses": {
+      "line1": "AddressLine1",
+      "line2": "AddressLine2",
+      "line3": "AddressLine3",
       "city": "City",
       "state": "Region",
       "postalCode": "PostalCode",

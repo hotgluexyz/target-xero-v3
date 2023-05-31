@@ -300,15 +300,41 @@ class CustomerSink(XeroSink, HotglueBatchSink):
     endpoint = "Contacts"
     name = "Customers"
     stream_endpoint = "contacts"
+    isCustomer = True
+    isSupplier = False
+
+    def transform_customer_payload(self,payload,record):
+        for list_field in ["addresses", "phones"]:
+            if isinstance(payload.get(list_field), dict):
+                payload.pop(list_field)
+        payload["IsCustomer"] = self.isCustomer
+        payload["IsSupplier"] = self.isSupplier
+        #We need to set address type
+        if payload.get("addresses"):
+            final_addresses = []
+            for address in payload.get("addresses"):
+                #lets default to Street type for now. 
+                address.update({"AddressType":"STREET"})
+                final_addresses.append(address)
+            payload.update({"addresses":final_addresses})    
+        if payload.get("addresses"):
+            final_addresses = []
+            for address in payload.get("addresses"):
+                #lets default to Street type for now. 
+                address.update({"AddressType":"STREET"})
+                final_addresses.append(address)
+            payload.update({"addresses":final_addresses})    
+        #Populate Contact Name
+        if record.get("contactName"):
+            first_name, last_name  = record.get("contactName").split()
+            payload.update({"FirstName":first_name,"LastName":last_name})
+
+        return payload    
 
     def process_batch_record(self, record: dict, context: dict) -> dict:
         mapping = UnifiedMapping()
         payload = mapping.prepare_payload(record, self.stream_endpoint, target="xero")
-
-        for list_field in ["addresses", "phones"]:
-            if isinstance(payload.get(list_field), dict):
-                payload.pop(list_field)
-        payload["IsCustomer"] = True
+        payload = self.transform_customer_payload(payload,record)
         return payload
 
     def handle_batch_response(self, response) -> dict:
@@ -322,6 +348,9 @@ class CustomerSink(XeroSink, HotglueBatchSink):
                     results.append({"success": False})
                 else:
                     results.append({"success": True})
+        elif  "Type" in response:
+            if response["Type"]=="ValidationException":
+                results.append({"success": False})
 
         return {"state_updates": results}
 
@@ -451,3 +480,15 @@ class QuotesSink(XeroRecordSink):
     def preprocess_record(self, record: dict, context: dict) -> dict:
         item = self.prepare_payload(record, self.stream_endpoint)
         return item
+
+class VendorsSink(CustomerSink):
+    name = "Vendors"
+    isSupplier = True
+
+    def process_batch_record(self, record: dict, context: dict) -> dict:
+        if record.get('vendorName'):
+            record.update({"customerName":record.get('vendorName')})
+        mapping = UnifiedMapping()
+        payload = mapping.prepare_payload(record, self.stream_endpoint, target="xero")
+        payload = self.transform_customer_payload(payload,record)
+        return payload

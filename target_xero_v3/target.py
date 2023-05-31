@@ -15,6 +15,7 @@ from target_xero_v3.sinks import (
     JournalEntriesSink,
     CreditNotesSink,
     QuotesSink,
+    VendorsSink,
 )
 
 
@@ -23,6 +24,7 @@ class TargetXero(TargetHotglue):
 
     SINK_TYPES = [
         CustomerSink,
+        VendorsSink,
         TaxRatesSink,
         ItemsSink,
         InvoicesSink,
