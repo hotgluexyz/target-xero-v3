@@ -334,28 +334,50 @@ class CustomerSink(XeroSink, HotglueBatchSink):
     def handle_batch_response(self, response) -> dict:
         state = {}
         results = []
-        response = response.json()
-        if "Contacts" in response:
-            for res in response["Contacts"]:
-                # Xero is not returning which contact was updated/new so all valid entries are success.
-                if res["HasValidationErrors"]:
+        try:
+            response = response.json()
+            if "Contacts" in response:
+                for res in response["Contacts"]:
+                    # Xero is not returning which contact was updated/new so all valid entries are success.
+                    if res["HasValidationErrors"]:
+                        results.append({"success": False})
+                    else:
+                        results.append({"success": True})
+            elif  "Type" in response:
+                if response["Type"]=="ValidationException":
                     results.append({"success": False})
-                else:
-                    results.append({"success": True})
-        elif  "Type" in response:
-            if response["Type"]=="ValidationException":
-                results.append({"success": False})
-
+        except Exception as e:
+            self.logger.info(f"error: {e}")
         return {"state_updates": results}
 
     def make_batch_request(self, records: List[dict]):
         client = self.get_client()
         rec = {self.endpoint: records}
-        print(f"Processing {self.stream_name}\n")
+        self.logger.info(f"Processing {self.stream_name}\n")
         res = client.push(self.endpoint, rec)
-        return res
+        try:
+            contact_ids = [contact["ContactID"] for contact in res.json()["Contacts"]]
+            self.logger.info("Customers batch uploaded with ids", str(contact_ids))
+            return res
+        except:
+            self.update_state({"error_response": res.json()})
+            return
+    
+    def process_batch(self, context: dict) -> None:
+        if not self.latest_state:
+            self.init_state()
 
+        raw_records = context["records"]
 
+        records = list(map(lambda e: self.process_batch_record(e[1], e[0]), enumerate(raw_records)))
+
+        response = self.make_batch_request(records)
+
+        result = self.handle_batch_response(response)
+
+        for state in result.get("state_updates", list()):
+            self.update_state(state)
+    
 class XeroRecordSink(XeroSink, HotglueSink):
     def upsert_record(self, record: dict, context: dict):
         client = self.get_client()
