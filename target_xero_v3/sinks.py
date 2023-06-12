@@ -317,7 +317,8 @@ class CustomerSink(XeroSink, HotglueBatchSink):
         if payload.get("phones"):
             for phone in payload.get("phones"):
                 #lets default to Street type for now. 
-                phone.update({"PhoneType":phone.get("PhoneType").upper()})
+                if phone:
+                    phone.update({"PhoneType":phone.get("PhoneType").upper()})
         #Populate Contact Name
         if record.get("contactName"):
             first_name, last_name  = record.get("contactName").split()
