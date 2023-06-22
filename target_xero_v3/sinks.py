@@ -321,7 +321,9 @@ class CustomerSink(XeroSink, HotglueBatchSink):
                     phone.update({"PhoneType":phone.get("PhoneType").upper()})
         #Populate Contact Name
         if record.get("contactName"):
-            first_name, last_name  = record.get("contactName").split()
+            contactName = record.get("contactName").split()
+            first_name = contactName[0] if len(contactName) >= 1 else ""
+            last_name = contactName[1] if len(contactName) >= 2 else ""
             payload.update({"FirstName":first_name,"LastName":last_name})
 
         return payload    
