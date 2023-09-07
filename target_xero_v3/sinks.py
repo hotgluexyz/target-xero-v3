@@ -194,10 +194,27 @@ class XeroSink:
                 if not payload.get(list_field):
                     payload.pop(list_field)
         elif stream_name == "invoices":
+            client = self.get_client()
+            contact_detail = None
             # Do bills need this check to?
-            if "Contact" in payload:
+            if "customerEmail" in payload:
+                contact_detail = client.filter(
+                        "Contacts",
+                        where='EmailAddress=="{}"'.format(payload["customerEmail"]),
+                    )
+                if contact_detail:
+                        contact_detail = contact_detail[0]
+                        payload["Contact"]["ContactID"] = contact_detail["ContactID"]
+                else:
+                    print(
+                        f"Warning: Contact {payload['Contact']['Name']} not found. Skipping."
+                    )
+                    payload.update({"contact_not_found": True})
+                    return payload
+                
+            #Look for customer using default object only if Email lookup failed
+            if "Contact" in payload and contact_detail is None:
                 if "customerId" not in payload["Contact"]:
-                    client = self.get_client()
                     # invoices = client.filter("Invoices",IDs='INV-ID')
                     contact_detail = client.filter(
                         "Contacts",
