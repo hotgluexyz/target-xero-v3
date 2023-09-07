@@ -27,6 +27,7 @@
       "customerId": "ContactID"
     },
     "currency": "CurrencyCode",
+    "customerEmail": "customerEmail",
     "issueDate": "Date",
     "dueDate": "DueDate",
     "paidDate": "FullyPaidOnDate",
