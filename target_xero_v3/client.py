@@ -228,7 +228,7 @@ class XeroClient:
         )
 
         if resp.status_code != 200:
-            raise_for_error(resp)
+            raise Exception(resp.text)
         else:
             resp = resp.json()
 

@@ -400,6 +400,7 @@ class CustomerSink(XeroSink, HotglueBatchSink):
     
 class XeroRecordSink(XeroSink, HotglueSink):
     def upsert_record(self, record: dict, context: dict):
+        id = None
         client = self.get_client()
         state_updates = dict()
         response = client.push(self.endpoint, record)
@@ -408,6 +409,7 @@ class XeroRecordSink(XeroSink, HotglueSink):
             id = response.json().get("Id")
         elif response.status_code == 400:
             state_updates["success"] = False
+            state_updates["error"] = response.json()
         return id, response.ok, state_updates
 
 
@@ -461,6 +463,7 @@ class InvoicesSink(XeroRecordSink):
         return invoice
 
     def upsert_record(self, record: dict, context: dict):
+        id = None
         client = self.get_client()
         state_updates = dict()
         # If contact is not found don't process it but let the target create payload's hash
@@ -474,6 +477,7 @@ class InvoicesSink(XeroRecordSink):
             id = response.json().get("Id")
         elif response.status_code == 400:
             state_updates["success"] = False
+            state_updates["error"] = response.text
         return id, response.ok, state_updates
 
 
