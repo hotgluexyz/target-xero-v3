@@ -197,20 +197,19 @@ class XeroSink:
             client = self.get_client()
             contact_detail = None
             # Do bills need this check to?
-            if "customerEmail" in payload:
+            if "customerEmail" in record:
                 contact_detail = client.filter(
                         "Contacts",
-                        where='EmailAddress=="{}"'.format(payload["customerEmail"]),
+                        where='EmailAddress=="{}"'.format(record["customerEmail"]),
                     )
                 if contact_detail:
                         contact_detail = contact_detail[0]
                         payload["Contact"]["ContactID"] = contact_detail["ContactID"]
                 else:
-                    print(
-                        f"Warning: Contact {payload['Contact']['Name']} not found. Skipping."
+                    LOGGER.warning(
+                        f"Warning: Contact with email: {record['customerEmail']} not found."
                     )
-                    payload.update({"contact_not_found": True})
-                    return payload
+                    
                 
             #Look for customer using default object only if Email lookup failed
             if "Contact" in payload and contact_detail is None:
@@ -224,7 +223,7 @@ class XeroSink:
                         contact_detail = contact_detail[0]
                         payload["Contact"]["ContactID"] = contact_detail["ContactID"]
                     else:
-                        print(
+                        LOGGER.warning(
                             f"Warning: Contact {payload['Contact']['Name']} not found. Skipping."
                         )
                         payload.update({"contact_not_found": True})
@@ -455,6 +454,7 @@ class InvoicesSink(XeroRecordSink):
     stream_endpoint = "invoices"
 
     def preprocess_record(self, record: dict, context: dict) -> dict:
+        
         record = self.get_account_status(record)
         if record:
             invoice = self.prepare_payload(record, self.stream_endpoint)
