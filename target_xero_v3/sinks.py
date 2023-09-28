@@ -469,6 +469,7 @@ class InvoicesSink(XeroRecordSink):
         # If contact is not found don't process it but let the target create payload's hash
         if "contact_not_found" in record:
             state_updates["success"] = False
+            state_updates["message"] = f"Contact for invoice {record['InvoiceNumber']} not found."
             return None, False, state_updates
 
         response = client.push(self.endpoint, record)
@@ -477,7 +478,7 @@ class InvoicesSink(XeroRecordSink):
             id = response.json().get("Id")
         elif response.status_code == 400:
             state_updates["success"] = False
-            state_updates["error"] = response.text
+            state_updates["message"] = response.text
         return id, response.ok, state_updates
 
 
