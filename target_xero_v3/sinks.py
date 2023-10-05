@@ -396,7 +396,8 @@ class CustomerSink(XeroSink, HotglueBatchSink):
 
         for state in result.get("state_updates", list()):
             self.update_state(state)
-    
+
+
 class XeroRecordSink(XeroSink, HotglueSink):
     def upsert_record(self, record: dict, context: dict):
         id = None
@@ -491,8 +492,17 @@ class BillsSink(XeroRecordSink):
         record = self.get_account_status(record)
         if record:
             invoice = self.prepare_payload(record, self.stream_endpoint)
+            invoice["Date"] = invoice["Date"].strftime("%Y-%m-%d")
+            invoice["UpdatedDateUTC"] = invoice["UpdatedDateUTC"].strftime("%Y-%m-%d")
+            for line_item in invoice["LineItems"]:
+                if line_item.get("TaxType") is None:
+                    line_item["TaxType"] = "TAX001"
+                
             if invoice is not None:
                 invoice["Type"] = self.config.get("invoice_type", "ACCPAY")
+        if invoice.get("status") in ["sent", "paid"]:
+            self.logger.info(f"Skipping {invoice.get('InvoiceNumber')} as it is already sent or paid.")
+            return None
         return invoice
 
 
@@ -513,6 +523,8 @@ class CreditNotesSink(XeroRecordSink):
     def preprocess_record(self, record: dict, context: dict) -> dict:
         item = self.prepare_payload(record, self.stream_endpoint)
         return item
+
+
 class QuotesSink(XeroRecordSink):
     endpoint = "Quotes"
     name = "Quotes"
@@ -521,6 +533,7 @@ class QuotesSink(XeroRecordSink):
     def preprocess_record(self, record: dict, context: dict) -> dict:
         item = self.prepare_payload(record, self.stream_endpoint)
         return item
+
 
 class VendorsSink(CustomerSink):
     name = "Vendors"
@@ -531,5 +544,5 @@ class VendorsSink(CustomerSink):
             record.update({"customerName":record.get('vendorName')})
         mapping = UnifiedMapping()
         payload = mapping.prepare_payload(record, self.stream_endpoint, target="xero")
-        payload = self.transform_customer_payload(payload,record)
+        payload = self.transform_customer_payload(payload, record)
         return payload
