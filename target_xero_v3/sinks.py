@@ -361,7 +361,7 @@ class CustomerSink(XeroSink, HotglueBatchSink):
                     if res["HasValidationErrors"]:
                         results.append({"success": False})
                     else:
-                        results.append({"success": True})
+                        results.append({"success": True, "id": res.get("ContactID")})
             elif  "Type" in response:
                 if response["Type"]=="ValidationException":
                     results.append({"success": False})
