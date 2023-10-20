@@ -48,7 +48,8 @@
       "taxAmount": "TaxAmount",
       "taxCode": "TaxType",
       "accountName": "AccountCode",
-      "discount": "DiscountRate"
+      "discount": "DiscountRate",
+      "discountAmount": "DiscountAmount"
     },
     "address": {
       "line1": "AddressLine1",
@@ -85,7 +86,8 @@
       "taxAmount": "TaxAmount",
       "taxCode": "TaxType",
       "accountName": "AccountCode",
-      "discount": "DiscountRate"
+      "discount": "DiscountRate",
+      "discountAmount": "DiscountAmount"
     },
     "address": {
       "line1": "AddressLine1",
@@ -151,7 +153,7 @@
       "productName": "ItemName",
       "description": "Description",
       "quantity": "Quantity",
-      "discountAmount": "DiscountRate",
+      "discountAmount": "DiscountAmount",
       "unitPrice": "UnitAmount"
     },
     "totalTaxAmount": "TotalTax",
