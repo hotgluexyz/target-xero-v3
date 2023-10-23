@@ -336,11 +336,10 @@ class CustomerSink(XeroSink, HotglueBatchSink):
                 if phone:
                     phone.update({"PhoneType":phone.get("PhoneType").upper()})
         #Populate Contact Name
-        if record.get("contactName"):
-            contactName = record.get("contactName").split()
-            first_name = contactName[0] if len(contactName) >= 1 else ""
-            last_name = contactName[1] if len(contactName) >= 2 else ""
-            payload.update({"FirstName":first_name,"LastName":last_name})
+        if record.get("contactName") and not payload.get("FirstName"):
+            contact_name = record.get("contactName").split()
+            last_name = contact_name[1] if len(contact_name) == 2 else None
+            payload.update({"FirstName":contact_name[0],"LastName":last_name})
 
         return payload    
 
@@ -433,6 +432,8 @@ class ItemsSink(XeroRecordSink):
     def preprocess_record(self, record: dict, context: dict) -> dict:
         mapping = UnifiedMapping()
         payload = mapping.prepare_payload(record, self.stream_endpoint)
+        if not payload.get("Code"):
+            payload["Code"] = payload.get("Name")
         for list_field in ["PurchaseDetails", "SalesDetails"]:
             if not payload.get(list_field):
                 payload.pop(list_field)
