@@ -1,6 +1,7 @@
 import json
 import os
 from cgitb import lookup
+from datetime import datetime
 
 __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
 
@@ -130,6 +131,8 @@ class UnifiedMapping:
                 payload = self.map_custom_fields(payload, mapping[lookup_key])
             else:
                 val = record.get(lookup_key, "")
+                if isinstance(val, datetime):
+                    val = val.strftime("%Y-%m-%d")
                 if val:
                     payload[mapping[lookup_key]] = val
 

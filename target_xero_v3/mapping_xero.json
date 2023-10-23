@@ -5,6 +5,8 @@
     "contactName": "Name",
     "customerName": "Name",
     "emailAddress": "EmailAddress",
+    "firstName": "FirstName",
+    "lastName": "LastName",
     "phoneNumbers": {
       "type": "PhoneType",
       "number": "PhoneNumber"
@@ -17,7 +19,8 @@
       "state": "Region",
       "postalCode": "PostalCode",
       "country": "Country"
-    }
+    },
+    "currency": "DefaultCurrency"
   },
   "invoices": {
     "id": "InvoiceID",
@@ -99,7 +102,6 @@
   "items": {
     "name": "Name",
     "code": "Code",
-    "updatedAt": "UpdatedDateUTC",
     "billItem": {
       "unitPrice": "UnitPrice",
       "accountId": "AccountCode"
