@@ -79,7 +79,8 @@ class XeroSink:
         if not self.account_codes:
             codes = {}
             for account in accounts:
-                codes.update({account["Name"].lower(): account["Code"]})
+                if "Code" in account:
+                    codes.update({account["Name"].lower(): account["Code"]})
             self.account_codes = codes
             del codes
         if account_name in self.account_codes:
