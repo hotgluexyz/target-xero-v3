@@ -200,19 +200,18 @@ class XeroSink:
             # Do bills need this check to?
             if "customerEmail" in record:
                 contact_detail = client.filter(
-                        "Contacts",
-                        where='EmailAddress=="{}"'.format(record["customerEmail"]),
-                    )
+                    "Contacts",
+                    where='EmailAddress=="{}"'.format(record["customerEmail"]),
+                )
                 if contact_detail:
-                        contact_detail = contact_detail[0]
-                        payload["Contact"]["ContactID"] = contact_detail["ContactID"]
+                    contact_detail = contact_detail[0]
+                    payload["Contact"]["ContactID"] = contact_detail["ContactID"]
                 else:
                     LOGGER.warning(
                         f"Warning: Contact with email: {record['customerEmail']} not found."
                     )
-                    
-                
-            #Look for customer using default object only if Email lookup failed
+
+            # Look for customer using default object only if Email lookup failed
             if "Contact" in payload and contact_detail is None:
                 if "customerId" not in payload["Contact"]:
                     # invoices = client.filter("Invoices",IDs='INV-ID')
@@ -263,13 +262,19 @@ class XeroSink:
     def prepare_invoice_lineitems(self, payload):
         lineItems = payload["LineItems"]
         items = []
-        # allItems = self.get_all_items()
+        allItems = self.get_all_items()
         self.tax_list = None
         taxes = self.get_tax_list()
         for lineItem in lineItems:
-            itemName = lineItem.get("ItemName")
+            itemName = None
+            if lineItem.get("ItemCode"):
+                itemName = lineItem.get("ItemCode")
+                lookup_key = "Code"
+            elif lineItem.get("ItemName"):
+                itemName = lineItem.get("ItemName")
+                lookup_key = "Name"
             if itemName:
-                item = self.get_item(itemName)
+                item = self.get_item(itemName, lookup_key)
                 lineItem.pop("ItemName", None)
                 if item:
                     lineItem["Item"] = {
@@ -293,17 +298,19 @@ class XeroSink:
             items.append(lineItem)
         return items
 
-    def get_item(self, itemName):
+    def get_item(self, lookupValue, key="Name"):
         return_item = {}
         for item in self.all_items:
-            if item["Name"] == itemName:
+            if item[key] == lookupValue:
                 return_item = item
                 break
         return return_item
 
     def get_all_items(self):
-        client = self.get_client()
-        self.all_items = client.filter("Items")
+        if not self.all_items:
+            client = self.get_client()
+            self.all_items = client.filter("Items")
+        return self.all_items
 
     def get_client(self):
         if self.client is None:
@@ -320,34 +327,34 @@ class CustomerSink(XeroSink, HotglueBatchSink):
     isCustomer = True
     isSupplier = False
 
-    def transform_customer_payload(self,payload,record):
+    def transform_customer_payload(self, payload, record):
         for list_field in ["addresses", "phones"]:
             if isinstance(payload.get(list_field), dict):
-                payload[list_field] = [payload[list_field]] 
+                payload[list_field] = [payload[list_field]]
         payload["IsCustomer"] = self.isCustomer
         payload["IsSupplier"] = self.isSupplier
-        #We need to set address type
+        # We need to set address type
         if payload.get("addresses"):
             for address in payload.get("addresses"):
-                #lets default to Street type for now. 
-                address.update({"AddressType":"STREET"})
+                # lets default to Street type for now.
+                address.update({"AddressType": "STREET"})
         if payload.get("phones"):
             for phone in payload.get("phones"):
-                #lets default to Street type for now. 
+                # lets default to Street type for now.
                 if phone:
-                    phone.update({"PhoneType":phone.get("PhoneType").upper()})
-        #Populate Contact Name
+                    phone.update({"PhoneType": phone.get("PhoneType").upper()})
+        # Populate Contact Name
         if record.get("contactName") and not payload.get("FirstName"):
             contact_name = record.get("contactName").split()
             last_name = contact_name[1] if len(contact_name) == 2 else None
-            payload.update({"FirstName":contact_name[0],"LastName":last_name})
+            payload.update({"FirstName": contact_name[0], "LastName": last_name})
 
-        return payload    
+        return payload
 
     def process_batch_record(self, record: dict, context: dict) -> dict:
         mapping = UnifiedMapping()
         payload = mapping.prepare_payload(record, self.stream_endpoint, target="xero")
-        payload = self.transform_customer_payload(payload,record)
+        payload = self.transform_customer_payload(payload, record)
         return payload
 
     def handle_batch_response(self, response) -> dict:
@@ -362,8 +369,8 @@ class CustomerSink(XeroSink, HotglueBatchSink):
                         results.append({"success": False})
                     else:
                         results.append({"success": True, "id": res.get("ContactID")})
-            elif  "Type" in response:
-                if response["Type"]=="ValidationException":
+            elif "Type" in response:
+                if response["Type"] == "ValidationException":
                     results.append({"success": False})
         except Exception as e:
             self.logger.info(f"error: {e}")
@@ -381,14 +388,16 @@ class CustomerSink(XeroSink, HotglueBatchSink):
         except:
             self.update_state({"error_response": res.json()})
             return
-    
+
     def process_batch(self, context: dict) -> None:
         if not self.latest_state:
             self.init_state()
 
         raw_records = context["records"]
 
-        records = list(map(lambda e: self.process_batch_record(e[1], e[0]), enumerate(raw_records)))
+        records = list(
+            map(lambda e: self.process_batch_record(e[1], e[0]), enumerate(raw_records))
+        )
 
         response = self.make_batch_request(records)
 
@@ -396,13 +405,15 @@ class CustomerSink(XeroSink, HotglueBatchSink):
 
         for state in result.get("state_updates", list()):
             self.update_state(state)
-    
+
+
 class XeroRecordSink(XeroSink, HotglueSink):
     def upsert_record(self, record: dict, context: dict):
         id = None
         client = self.get_client()
         state_updates = dict()
         response = client.push(self.endpoint, record)
+        self.log_request_response(record, response)
         if response.status_code in [200]:
             state_updates["success"] = True
             id = response.json().get("Id")
@@ -410,6 +421,10 @@ class XeroRecordSink(XeroSink, HotglueSink):
             state_updates["success"] = False
             state_updates["error"] = response.json()
         return id, response.ok, state_updates
+
+    def log_request_response(self, record, response):
+        self.logger.info(f"Sending payload for stream {self.name}: {record}")
+        self.logger.info(f"Response: {response.text}")
 
 
 class TaxRatesSink(XeroRecordSink):
@@ -456,7 +471,6 @@ class InvoicesSink(XeroRecordSink):
     stream_endpoint = "invoices"
 
     def preprocess_record(self, record: dict, context: dict) -> dict:
-        
         record = self.get_account_status(record)
         if record:
             invoice = self.prepare_payload(record, self.stream_endpoint)
@@ -471,10 +485,13 @@ class InvoicesSink(XeroRecordSink):
         # If contact is not found don't process it but let the target create payload's hash
         if "contact_not_found" in record:
             state_updates["success"] = False
-            state_updates["message"] = f"Contact for invoice {record['InvoiceNumber']} not found."
+            state_updates[
+                "message"
+            ] = f"Contact for invoice {record['InvoiceNumber']} not found."
             return None, False, state_updates
 
         response = client.push(self.endpoint, record)
+        self.log_request_response(record, response)
         if response.status_code in [200]:
             state_updates["success"] = True
             id = response.json().get("Id")
@@ -515,6 +532,8 @@ class CreditNotesSink(XeroRecordSink):
     def preprocess_record(self, record: dict, context: dict) -> dict:
         item = self.prepare_payload(record, self.stream_endpoint)
         return item
+
+
 class QuotesSink(XeroRecordSink):
     endpoint = "Quotes"
     name = "Quotes"
@@ -524,14 +543,15 @@ class QuotesSink(XeroRecordSink):
         item = self.prepare_payload(record, self.stream_endpoint)
         return item
 
+
 class VendorsSink(CustomerSink):
     name = "Vendors"
     isSupplier = True
 
     def process_batch_record(self, record: dict, context: dict) -> dict:
-        if record.get('vendorName'):
-            record.update({"customerName":record.get('vendorName')})
+        if record.get("vendorName"):
+            record.update({"customerName": record.get("vendorName")})
         mapping = UnifiedMapping()
         payload = mapping.prepare_payload(record, self.stream_endpoint, target="xero")
-        payload = self.transform_customer_payload(payload,record)
+        payload = self.transform_customer_payload(payload, record)
         return payload
