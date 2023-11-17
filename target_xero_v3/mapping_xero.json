@@ -1,5 +1,5 @@
 {
-  "ignore": ["ContactID", "InvoiceID", "ItemCode", "LineItemID"],
+  "ignore": ["ContactID", "InvoiceID", "LineItemID"],
   "contacts": {
     "id": "ContactID",
     "contactName": "Name",
@@ -104,11 +104,13 @@
     "code": "Code",
     "billItem": {
       "unitPrice": "UnitPrice",
-      "accountId": "AccountCode"
+      "accountId": "AccountCode",
+      "description": "Description"
     },
     "invoiceItem": {
       "unitPrice": "UnitPrice",
-      "accountId": "COGSAccountCode"
+      "accountId": "COGSAccountCode",
+      "description": "Description"
     }
   },
   "credit_notes": {
