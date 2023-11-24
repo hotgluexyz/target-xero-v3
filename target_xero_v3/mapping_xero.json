@@ -52,7 +52,9 @@
       "taxCode": "TaxType",
       "accountName": "AccountCode",
       "discount": "DiscountRate",
-      "discountAmount": "DiscountAmount"
+      "discountAmount": "DiscountAmount",
+      "classId": "classId",
+      "className": "className"
     },
     "address": {
       "line1": "AddressLine1",
@@ -90,7 +92,9 @@
       "taxCode": "TaxType",
       "accountName": "AccountCode",
       "discount": "DiscountRate",
-      "discountAmount": "DiscountAmount"
+      "discountAmount": "DiscountAmount",
+      "classId":"classId",
+      "className":"className"
     },
     "address": {
       "line1": "AddressLine1",
