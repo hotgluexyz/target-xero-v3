@@ -344,7 +344,10 @@ class XeroClient:
                 object_hook=_json_load_object_hook,
                 parse_float=decimal.Decimal,
             )
-            response_body = response_meta.pop(xero_resource_name)
+            if xero_resource_name in response_meta:
+                response_body = response_meta.pop(xero_resource_name)
+            elif tap_stream_id in response_meta:
+                response_body = response_meta.pop(tap_stream_id)
             return response_body
 
     @backoff.on_exception(

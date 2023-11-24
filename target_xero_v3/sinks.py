@@ -295,6 +295,37 @@ class XeroSink:
                     lineItem["AccountCode"] = self.get_account_code(
                         lineItem["AccountCode"]
                     )
+
+            tracking_items = []
+            client = self.get_client()
+            if "classId" not in lineItem:
+                tracking_detail = None
+                if "className" in lineItem:
+                    tracking_detail = client.filter(
+                        "TrackingCategories",
+                        where='Name=="{}"'.format(lineItem["className"]),
+                    )
+                if tracking_detail:
+                    tracking_detail = tracking_detail[0]
+                    del tracking_detail["Status"]
+                    del tracking_detail["Options"]
+                    tracking_items.append(tracking_detail)
+            else:
+                if "classId" in lineItem and "className" in lineItem:
+                    tracking_items.append(
+                        {
+                            "TrackingCategoryID": lineItem.get("classId"),
+                            "Name": lineItem.get("className"),
+                        }
+                    )
+
+            if len(tracking_items) > 0:
+                lineItem["Tracking"] = tracking_items
+            #Delete tracking keys from base item    
+            if "classId" in lineItem:
+                del lineItem["classId"]
+            if "className" in lineItem:
+                del lineItem["className"]
             items.append(lineItem)
         return items
 
