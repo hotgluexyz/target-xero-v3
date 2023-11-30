@@ -502,34 +502,38 @@ class InvoicesSink(XeroRecordSink):
     stream_endpoint = "invoices"
 
     def preprocess_record(self, record: dict, context: dict) -> dict:
+        invoice_number = record.get("invoiceNumber")
         record = self.get_account_status(record)
         if record:
             invoice = self.prepare_payload(record, self.stream_endpoint)
             if invoice is not None:
                 invoice["Type"] = self.config.get("invoice_type", "ACCREC")
-        return invoice
+            return invoice
+        return {"id": invoice_number}
 
     def upsert_record(self, record: dict, context: dict):
-        id = None
-        client = self.get_client()
         state_updates = dict()
-        # If contact is not found don't process it but let the target create payload's hash
-        if "contact_not_found" in record:
-            state_updates["success"] = False
-            state_updates[
-                "message"
-            ] = f"Contact for invoice {record['InvoiceNumber']} not found."
-            return None, False, state_updates
+        if record:
+            id = None
+            client = self.get_client()
+            # If contact is not found don't process it but let the target create payload's hash
+            if "contact_not_found" in record:
+                state_updates["success"] = False
+                state_updates[
+                    "message"
+                ] = f"Contact for invoice {record['InvoiceNumber']} not found."
+                return None, False, state_updates
 
-        response = client.push(self.endpoint, record)
-        self.log_request_response(record, response)
-        if response.status_code in [200]:
-            state_updates["success"] = True
-            id = response.json().get("Id")
-        elif response.status_code == 400:
-            state_updates["success"] = False
-            state_updates["message"] = response.text
-        return id, response.ok, state_updates
+            response = client.push(self.endpoint, record)
+            self.log_request_response(record, response)
+            if response.status_code in [200]:
+                state_updates["success"] = True
+                id = response.json().get("Id")
+            elif response.status_code == 400:
+                state_updates["success"] = False
+                state_updates["message"] = response.text
+            return id, response.ok, state_updates
+        return record.get("id"), True, state_updates
 
 
 class BillsSink(XeroRecordSink):
