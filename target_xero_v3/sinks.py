@@ -230,7 +230,9 @@ class XeroSink:
                         return payload
 
                 payload["LineItems"] = self.prepare_invoice_lineitems(payload)
-            else:
+            if "Contact" not in payload:
+                payload.update({"contact_not_found": True})        
+            elif "ContactID" not in payload['Contact']:
                 payload.update({"contact_not_found": True})
 
         elif stream_name == "credit_notes":
