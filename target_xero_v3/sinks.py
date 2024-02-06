@@ -1,17 +1,21 @@
 """Xero target sink class, which handles writing streams."""
 import json
+import singer
+
+from pendulum import parse
 from datetime import datetime
 from typing import Dict, List, Optional
 
-from singer_sdk.plugin_base import PluginBase
 from singer_sdk.sinks import BatchSink
+from singer_sdk.plugin_base import PluginBase
 
 from target_xero_v3.client import XeroClient
 from target_xero_v3.mapping import UnifiedMapping
-import singer
+
+from target_hotglue.client import HotglueSink, HotglueBatchSink
+
 
 LOGGER = singer.get_logger()
-from target_hotglue.client import HotglueSink, HotglueBatchSink
 
 
 class XeroSink:
@@ -152,7 +156,7 @@ class XeroSink:
 
     def process_journalentries(self, record):
         date = record["transactionDate"]
-        date = datetime.strptime(date, "%m/%d/%Y")
+        date = parse(date)
         date = date.strftime("%Y-%m-%d")
 
         # Create the entry
