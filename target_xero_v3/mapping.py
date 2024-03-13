@@ -87,8 +87,9 @@ class UnifiedMapping:
                     payload,
                     type="LineItems",
                 )
-                if endpoint == "credit_notes":
-                    payload["LineItems"] = [payload["LineItems"]]
+                #@TODO look into why this change was here.
+                # if endpoint == "credit_notes":
+                #     payload["LineItems"] = [payload["LineItems"]]
             elif lookup_key == "address" and target == "xero":
                 payload = self.map_xero_list(
                     record.get(lookup_key, []),

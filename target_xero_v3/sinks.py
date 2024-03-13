@@ -247,11 +247,9 @@ class XeroSink:
                 where='Name=="{}"'.format(payload["customerName"]),
             )
             for i, item in enumerate(payload["LineItems"]):
-                account_detail = client.filter(
-                    "Accounts",
-                    where='Name=="{}"'.format(item["AccountCode"]),
-                )
-                payload["LineItems"][i]["AccountCode"] = account_detail[0]["Code"]
+                account_code = self.get_account_code(item["AccountCode"])
+                if account_code:
+                    payload["LineItems"][i]["AccountCode"] = account_code
 
             if contact_detail:
                 contact_detail = contact_detail[0]
