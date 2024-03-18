@@ -119,8 +119,12 @@
   },
   "credit_notes": {
     "customerRef": {
-      "customerName": "customerName"
+      "customerName": "customerName",
+      "emailAddress":"customerEmail"
     },
+    "creditNoteNumber":"creditNoteNumber",
+    "modifiedDate":"modifiedDate",
+    "status":"Status",
     "issueDate": "Date",
     "currency": "CurrencyCode",
     "currencyRate": "CurrencyRate",
