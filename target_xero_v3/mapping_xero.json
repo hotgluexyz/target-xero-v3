@@ -173,5 +173,45 @@
     "discount": "TotalDiscount",
     "title": "Title",
     "summary": "Summary"
+  },
+  "bank_transactions": {
+    "id": "BankTransactionID",
+    "accountName": "Name",
+    "accountCode": "Code",
+    "accountId": "AccountID",
+    "type":"Type",
+    "reference":"Reference",
+    "isReconciled":"IsReconciled",
+    "hasAttachments":"HasAttachments",
+    "contact": {
+      "customerName": "Name",
+      "customerId": "ContactID"
+    },
+    "issueDate": "Date",
+    "lineAmountType": "LineAmountTypes",
+    "lineItems": {    
+      "id": "LineItemID",
+      "productId": "ItemCode",
+      "productName": "ItemName",
+      "description": "Description",
+      "quantity": "Quantity",
+      "unitPrice": "UnitAmount",
+      "totalPrice": "LineAmount",
+      "taxAmount": "TaxAmount",
+      "taxCode": "TaxType",
+      "accountName": "AccountCode",
+      "discount": "DiscountRate",
+      "discountAmount": "DiscountAmount",
+      "classId": "classId",
+      "className": "className"
+      
+    },
+    "subTotal": "SubTotal",
+    "totalAmount": "Total",
+    "totalDiscount": "TotalDiscount",
+    "amountDue": "AmountDue",
+    "status": "Status",
+    "currency": "CurrencyCode",
+    "updatedAt": "UpdatedDateUTC"
   }
 }
