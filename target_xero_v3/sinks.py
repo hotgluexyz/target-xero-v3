@@ -198,7 +198,7 @@ class XeroSink:
             for list_field in ["PurchaseDetails", "SalesDetails"]:
                 if not payload.get(list_field):
                     payload.pop(list_field)
-        elif stream_name == "invoices":
+        elif stream_name in ["invoices","bank_transactions"]:
             client = self.get_client()
             contact_detail = None
             # Do bills need this check to?
@@ -596,3 +596,78 @@ class VendorsSink(CustomerSink):
         payload = mapping.prepare_payload(record, self.stream_endpoint, target="xero")
         payload = self.transform_customer_payload(payload, record)
         return payload
+class BankTransactionSink(XeroRecordSink):
+    name = "BankTransactions"
+    endpoint = "BankTransactions"
+    stream_endpoint = "bank_transactions"
+
+    def preprocess_record(self, record: dict, context: dict) -> dict:
+        client = self.get_client()
+        payload = self.prepare_payload(record, self.stream_endpoint)
+        
+        if "AccountID" in payload:
+            if payload["AccountID"]:
+                payload['BankAccount']['AccountID'] = payload['AccountID']
+
+        if "BankAccount" not in payload:
+            if "Name" in payload:
+                bank_detail = client.filter(
+                    "Accounts",
+                    where='Name=="{}"'.format(payload["Name"]),
+                )
+                if bank_detail:
+                    bank_detail = bank_detail[0]
+                    payload['BankAccount']= {}
+                    payload['BankAccount']['AccountID'] = bank_detail['AccountID']
+                    payload['BankAccount']['Code'] = bank_detail['Code']
+                    payload['BankAccount']['Name'] = bank_detail['Name']
+                elif "Code" in payload:
+                    bank_detail = client.filter(
+                    "Accounts",
+                        where='Code=="{}"'.format(payload["Code"]),
+                    )
+                    if bank_detail:
+                        payload['BankAccount']= {}
+                        bank_detail = bank_detail[0]
+                        payload['BankAccount']['AccountID'] = bank_detail['AccountID']
+                        payload['BankAccount']['Code'] = bank_detail['Code']
+                        payload['BankAccount']['Name'] = bank_detail['Name'] 
+        if "BankAccount" not in payload:
+            LOGGER.warning(
+                            f"Warning: Contact {payload['Contact']['Name']} not found. Skipping."
+                        )
+            payload.update({"bank_not_found": True})
+            return payload
+
+
+        return payload
+    
+    def upsert_record(self, record: dict, context: dict):
+        state_updates = dict()
+        if record:
+            id = None
+            client = self.get_client()
+            # If contact is not found don't process it but let the target create payload's hash
+            if "contact_not_found" in record:
+                state_updates["success"] = False
+                state_updates[
+                    "message"
+                ] = f"Contact for bank transaction {record} not found."
+                return None, False, state_updates
+            if "bank_not_found" in record:
+                state_updates["success"] = False
+                state_updates[
+                    "message"
+                ] = f"Bank account for bank transaction {record} not found."
+                return None, False, state_updates
+
+            response = client.push(self.endpoint, record)
+            self.log_request_response(record, response)
+            if response.status_code in [200]:
+                state_updates["success"] = True
+                id = response.json().get("Id")
+            elif response.status_code == 400:
+                state_updates["success"] = False
+                state_updates["message"] = response.text
+            return id, response.ok, state_updates
+        return record.get("id"), True, state_updates
