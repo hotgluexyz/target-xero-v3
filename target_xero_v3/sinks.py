@@ -363,6 +363,7 @@ class CustomerSink(XeroSink, HotglueBatchSink):
     stream_endpoint = "contacts"
     isCustomer = True
     isSupplier = False
+    max_size = 1
 
     def transform_customer_payload(self, payload, record):
         for list_field in ["addresses", "phones"]:
