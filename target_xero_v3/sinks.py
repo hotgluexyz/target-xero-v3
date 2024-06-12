@@ -217,7 +217,7 @@ class XeroSink:
 
             # Look for customer using default object only if Email lookup failed
             if "Contact" in payload and contact_detail is None:
-                if "customerId" not in payload["Contact"]:
+                if "ContactID" not in payload["Contact"]:
                     # invoices = client.filter("Invoices",IDs='INV-ID')
                     contact_detail = client.filter(
                         "Contacts",
