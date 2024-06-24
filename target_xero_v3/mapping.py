@@ -26,13 +26,14 @@ class UnifiedMapping:
             payload[key] = val
         return payload
 
-    def map_xero_dict(self, record, mapping, payload):
+    def map_xero_dict(self, record, mapping, payload,key=""):
         lookup_keys = mapping.keys()
         for lookup_key in lookup_keys:
             val = record.get(lookup_key, "")
             if val:
                 payload[mapping[lookup_key]] = val
-
+        if key:
+            return {key: payload}
         return payload
 
     def map_xero_list(
@@ -124,7 +125,7 @@ class UnifiedMapping:
                 )
             elif lookup_key == "customerRef" and target == "xero":
                 payload = self.map_xero_dict(
-                    record.get(lookup_key, {}), mapping[lookup_key], payload
+                    record.get(lookup_key, {}), mapping[lookup_key], payload, "Contact"
                 )
 
             elif lookup_key == "custom_fields":
@@ -145,6 +146,7 @@ class UnifiedMapping:
         if target == "shopify" and endpoint == "products":
             payload = self.inject_sopify_product_fields(record, payload, mapping)
 
+        # filter ignored keys
         payload = self.filter_ignore_keys(payload)
         return payload
 

@@ -120,7 +120,8 @@
   "credit_notes": {
     "customerRef": {
       "customerName": "customerName",
-      "emailAddress":"customerEmail"
+      "emailAddress":"customerEmail",
+      "id": "ContactID"
     },
     "creditNoteNumber":"creditNoteNumber",
     "modifiedDate":"modifiedDate",
