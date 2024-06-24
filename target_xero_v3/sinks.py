@@ -198,7 +198,8 @@ class XeroSink:
             for list_field in ["PurchaseDetails", "SalesDetails"]:
                 if not payload.get(list_field):
                     payload.pop(list_field)
-        elif stream_name in ["invoices","bank_transactions"]:
+        elif stream_name in ["invoices", "bank_transactions", "credit_notes"]:
+            #Search and populate ContactID
             client = self.get_client()
             contact_detail = None
             # Do bills need this check to?
@@ -232,30 +233,19 @@ class XeroSink:
                         )
                         payload.update({"contact_not_found": True})
                         return payload
-
-                payload["LineItems"] = self.prepare_invoice_lineitems(payload)
+                # We already have separate logic for Credit Notes line items.    
+                if stream_name != "credit_notes":
+                    payload["LineItems"] = self.prepare_invoice_lineitems(payload)
             if "Contact" not in payload:
                 payload.update({"contact_not_found": True})        
             elif "ContactID" not in payload['Contact']:
                 payload.update({"contact_not_found": True})
 
-        elif stream_name == "credit_notes":
-            client = self.get_client()
-            # invoices = client.filter("Invoices",IDs='INV-ID')
-            contact_detail = client.filter(
-                "Contacts",
-                where='Name=="{}"'.format(payload["customerName"]),
-            )
+        if stream_name == "credit_notes":
             for i, item in enumerate(payload["LineItems"]):
                 account_code = self.get_account_code(item["AccountCode"])
                 if account_code:
                     payload["LineItems"][i]["AccountCode"] = account_code
-
-            if contact_detail:
-                contact_detail = contact_detail[0]
-                if not payload.get("Contact"):
-                    payload["Contact"] = {}
-                payload["Contact"]["ContactID"] = contact_detail["ContactID"]
 
             if payload.get("Date"):
                 payload["Date"] = payload["Date"].split("T")[0]
@@ -446,7 +436,15 @@ class CustomerSink(XeroSink, HotglueBatchSink):
 
 class XeroRecordSink(XeroSink, HotglueSink):
     def upsert_record(self, record: dict, context: dict):
+        state_updates = dict()
         id = None
+        # If contact is not found don't process it but let the target create payload's hash
+        if "contact_not_found" in record:
+            state_updates["success"] = False
+            state_updates[
+                "message"
+            ] = f"Contact for invoice {record['InvoiceNumber']} not found."
+            return None, False, state_updates
         client = self.get_client()
         state_updates = dict()
         response = client.push(self.endpoint, record)
@@ -522,14 +520,6 @@ class InvoicesSink(XeroRecordSink):
         if record:
             id = None
             client = self.get_client()
-            # If contact is not found don't process it but let the target create payload's hash
-            if "contact_not_found" in record:
-                state_updates["success"] = False
-                state_updates[
-                    "message"
-                ] = f"Contact for invoice {record['InvoiceNumber']} not found."
-                return None, False, state_updates
-
             response = client.push(self.endpoint, record)
             self.log_request_response(record, response)
             if response.status_code in [200]:
