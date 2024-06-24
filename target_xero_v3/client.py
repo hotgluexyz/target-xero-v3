@@ -314,6 +314,8 @@ class XeroClient:
         max_tries=3,
     )
     def filter(self, tap_stream_id, since=None, invoice_number=None, **params):
+        #Verify credentials
+        self.refresh_credentials()
         xero_resource_name = tap_stream_id.title().replace("_", "")
         if not invoice_number:
             url = join(BASE_URL, xero_resource_name)
