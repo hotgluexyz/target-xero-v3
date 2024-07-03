@@ -63,9 +63,9 @@ class XeroSink:
     def get_tax_list(self):
         if not self.tax_list:
             client = self.get_client()
-            self.tax_list = {
-                i["Name"]: i["TaxType"] for i in client.filter("Tax_Rates")
-            }
+            tax_rates = client.filter("Tax_Rates")
+            if tax_rates:
+                self.tax_list = {i["Name"]: i["TaxType"] for i in tax_rates}
         return self.tax_list
 
     def get_accounts_list(self):
