@@ -251,7 +251,7 @@ class XeroSink:
                 payload["Date"] = payload["Date"].split("T")[0]
 
             payload["LineAmountTypes"] = "Exclusive"
-            payload["Type"] = "ACCPAYCREDIT"
+            payload["Type"] = "ACCPAYCREDIT" if record.get("type") == "AP" else "ACCRECCREDIT"
 
         return payload
 
