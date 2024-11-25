@@ -129,15 +129,21 @@ class XeroSink:
         accounts, categories = self.prepare_accounts_categories()
 
         for row in lines:
-            posting_type = row["postingType"]
+            posting_type = row.get("postingType")
+            if not posting_type:
+                raise Exception(f"Posting type not defined for journal line {row}.")
+            
+            if not row.get("amount"):
+                raise Exception(f"Amount not defined for journal line {row}.")
             line_amt = abs(row["amount"])
+            
             if posting_type.lower() == "credit":
                 line_amt = -1 * line_amt
 
-            line_item = {"Description": row["description"], "LineAmount": line_amt}
+            line_item = {"Description": row.get("description"), "LineAmount": line_amt}
 
-            acct_num = str(row["accountNumber"])
-            acct_name = row["accountName"]
+            acct_num = str(row.get("accountNumber"))
+            acct_name = row.get("accountName")
             acct_code = accounts.get(acct_num, accounts.get(acct_name, {})).get("Code")
 
             if acct_code is not None:
@@ -149,7 +155,8 @@ class XeroSink:
 
             if row.get("customerName"):
                 tracking = categories.get(row.get("customerName"))
-                line_item["Tracking"] = [tracking]
+                if tracking:
+                    line_item["Tracking"] = [tracking]
 
             return_lines.append(line_item)
         return return_lines
