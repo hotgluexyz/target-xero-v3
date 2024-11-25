@@ -166,7 +166,10 @@ class XeroSink:
             "Status": "POSTED",
         }
         lines = {}
-        lines["JournalLines"] = self.build_lines(record["lines"])
+        lines["JournalLines"] = self.build_lines(record.get(
+            "journalLines",
+            record.get("lines", [])
+        ))
 
         entry.update(lines)
         return entry
