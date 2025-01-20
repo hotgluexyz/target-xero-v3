@@ -400,6 +400,9 @@ class CustomerSink(XeroSink, HotglueBatchSink):
         try:
             response = response.json()
             if "Contacts" in response:
+                contact_ids = [contact["ContactID"] for contact in response["Contacts"]]
+                self.logger.info("Customers batch uploaded with ids", str(contact_ids))
+
                 for res in response["Contacts"]:
                     # Xero is not returning which contact was updated/new so all valid entries are success.
                     if res["HasValidationErrors"]:
@@ -419,8 +422,7 @@ class CustomerSink(XeroSink, HotglueBatchSink):
         self.logger.info(f"Processing {self.stream_name}\n")
         res = client.push(self.endpoint, rec)
         try:
-            contact_ids = [contact["ContactID"] for contact in res.json()["Contacts"]]
-            self.logger.info("Customers batch uploaded with ids", str(contact_ids))
+            self.logger.info(f"Got response: {res.text}")
             return res
         except:
             self.update_state({"error_response": res.json()})
