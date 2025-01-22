@@ -119,7 +119,7 @@
   },
   "credit_notes": {
     "customerRef": {
-      "customerName": "customerName",
+      "customerName": "Name",
       "emailAddress":"customerEmail",
       "id": "ContactID"
     },

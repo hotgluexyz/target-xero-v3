@@ -401,7 +401,7 @@ class CustomerSink(XeroSink, HotglueBatchSink):
             response = response.json()
             if "Contacts" in response:
                 contact_ids = [contact["ContactID"] for contact in response["Contacts"]]
-                self.logger.info("Customers batch uploaded with ids", str(contact_ids))
+                self.logger.info(f"Customers batch uploaded with ids {str(contact_ids)}")
 
                 for res in response["Contacts"]:
                     # Xero is not returning which contact was updated/new so all valid entries are success.
