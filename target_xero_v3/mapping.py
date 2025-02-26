@@ -35,7 +35,7 @@ class UnifiedMapping:
         if key:
             return {key: payload}
         return payload
-
+    
     def prepare_trackings_using_custom_fields(self, customFields):
         """
         Prepares Xero-compatible Tracking Categories from customFields.
@@ -58,13 +58,13 @@ class UnifiedMapping:
         ]
 
     def map_xero_list(
-        self, rows, mapping, payload, type="addresses", target="xero"
+        self, data, mapping, payload, type="addresses", target="xero"
     ):
         """
         Maps a list of records to Xero-compatible structures.
 
         Args:
-            rows (list or str): Input data rows to be mapped.
+            data (list or str): Input data rows to be mapped.
             mapping (dict): Mapping configuration for the target type.
             payload (dict): The output payload to be populated.
             type (str): The type of items being mapped (e.g., 'addresses', 'LineItems').
@@ -73,40 +73,33 @@ class UnifiedMapping:
         Returns:
             dict: The updated payload with mapped items.
         """
-        # Convert string to JSON if necessary
-        if isinstance(rows, str):
-            rows = json.loads(rows)
-        
-        # If rows is a list, process each item in the list
-        if isinstance(rows, list):
-            items = []
-            for row in rows:
-                record = {}
+        if isinstance(data, str):
+            data = json.loads(data)
+        if isinstance(data, list):
+            _list = []
+            for row in data:
+                item = {}
                 for key in mapping.keys():
-                    if key not in row:
-                        continue
+                    if key in row:
+                        if type == 'LineItems' and key == 'customFields':
+                            item['Tracking'] = self.prepare_trackings_using_custom_fields(row[key])
+                        else:
+                            item[mapping[key]] = row[key]
 
-                    if type == 'LineItems' and key == 'customFields':
-                        record['Tracking'] = self.prepare_trackings_using_custom_fields(row[key])
-                    else:
-                        record[mapping[key]] = row[key]
-                record = self.filter_ignore_keys(record)
-                items.append(record)
+                item = self.filter_ignore_keys(item)
+                _list.append(item)
 
-            payload[type] = items
-
-        # If rows is a single dictionary, process it accordingly
-        elif isinstance(rows, dict):
-            record = {
-                mapping[key]: rows[key]
-                for key in mapping
-                if key in rows
-            }
-
+            payload[type] = _list
+        else:
+            item = {}
+            for key in mapping.keys():
+                if key in data:
+                    item[mapping[key]] = data[key]
             if type == "Addresses":
-                payload[type] = [self.filter_ignore_keys(record)]
+                item = self.filter_ignore_keys(item)
+                payload[type] = [item]
             else:
-                payload[type] = self.filter_ignore_keys(record)
+                payload[type] = item
         return payload
 
     # Modify this function and use recursion to support nested mapping
