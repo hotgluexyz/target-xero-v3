@@ -110,9 +110,11 @@ class XeroSink:
 
             name = account["Name"]
             code = account["Code"]
-            acc_ref = {"Name": name, "Code": code}
+            id = account["AccountID"]
+            acc_ref = {"Name": name, "Code": code, "Id": id}
             accounts[code] = acc_ref
             accounts[name] = acc_ref
+            accounts[id] = acc_ref
 
         # Process categories
         categories = {}
@@ -144,7 +146,9 @@ class XeroSink:
 
             acct_num = str(row.get("accountNumber"))
             acct_name = row.get("accountName")
-            acct_code = accounts.get(acct_num, accounts.get(acct_name, {})).get("Code")
+            acct_id = row.get("accountId")
+
+            acct_code = accounts.get(acct_num, accounts.get(acct_name, accounts.get(acct_id, {}))).get("Code")
 
             if acct_code is not None:
                 line_item["AccountCode"] = acct_code
