@@ -468,9 +468,10 @@ class XeroRecordSink(XeroSink, HotglueSink):
         if response.status_code in [200]:
             state_updates["success"] = True
             id = response.json().get("Id")
-        elif response.status_code == 400:
+        else:
             state_updates["success"] = False
             state_updates["error"] = response.json()
+            self.logger.error(f"Request failed: {response.status_code} - {response.text}")
         return id, response.ok, state_updates
 
     def log_request_response(self, record, response):
