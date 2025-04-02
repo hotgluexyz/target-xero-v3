@@ -92,9 +92,10 @@ class UnifiedMapping:
             payload[type] = _list
         else:
             item = {}
-            for key in mapping.keys():
-                if key in data:
-                    item[mapping[key]] = data[key]
+            if data is not None:
+                for key in mapping.keys():
+                    if key in data:
+                        item[mapping[key]] = data[key]
             if type == "Addresses":
                 item = self.filter_ignore_keys(item)
                 payload[type] = [item]
