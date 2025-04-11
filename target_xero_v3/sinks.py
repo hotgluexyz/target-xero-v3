@@ -603,6 +603,8 @@ class VendorsSink(CustomerSink):
         payload = mapping.prepare_payload(record, self.stream_endpoint, target="xero")
         payload = self.transform_customer_payload(payload, record)
         return payload
+    
+
 class BankTransactionSink(XeroRecordSink):
     name = "BankTransactions"
     endpoint = "BankTransactions"
@@ -678,3 +680,30 @@ class BankTransactionSink(XeroRecordSink):
                 state_updates["message"] = response.text
             return id, response.ok, state_updates
         return record.get("id"), True, state_updates
+
+
+class BillPaymentsSink(XeroRecordSink):
+    name = "BillPayments"
+    endpoint = "Payments"
+
+    def preprocess_record(self, record: dict, context: dict) -> dict:
+        try:
+            account_name = record.get("accountName")
+            account_code = record.get("accountNumber")
+
+            if not account_code and not account_name:
+                raise Exception(f"No account code or account name was provided.")
+            if account_name and not account_code:
+                account_code = self.get_account_code(account_name)
+            if not account_code:
+                raise Exception(f"Account '{account_name}' was not found.")
+            
+            payload = {
+                "Invoice": { "InvoiceID": record.get("bill_id") },
+                "Account": { "Code": account_code },
+                "Date": record.get("date"),
+                "Amount": record.get("amount")
+            }
+            return payload
+        except Exception as e:
+            return {"error": e}
