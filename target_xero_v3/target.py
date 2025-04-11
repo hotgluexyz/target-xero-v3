@@ -17,6 +17,7 @@ from target_xero_v3.sinks import (
     QuotesSink,
     VendorsSink,
     BankTransactionSink,
+    BillPaymentsSink
 )
 
 
@@ -34,6 +35,7 @@ class TargetXero(TargetHotglue):
         CreditNotesSink,
         QuotesSink,
         BankTransactionSink,
+        BillPaymentsSink
     ]
     name = "target-xero-v3"
 
