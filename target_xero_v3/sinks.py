@@ -699,7 +699,7 @@ class BillPaymentsSink(XeroRecordSink):
                 raise Exception(f"Account '{account_name}' was not found.")
             
             payload = {
-                "Invoice": { "InvoiceID": record.get("bill_id") },
+                "Invoice": { "InvoiceID": record.get("transactionId") },
                 "Account": { "Code": account_code },
                 "Date": record.get("date"),
                 "Amount": record.get("amount")
