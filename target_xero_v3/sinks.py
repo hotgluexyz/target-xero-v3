@@ -461,6 +461,11 @@ class XeroRecordSink(XeroSink, HotglueSink):
                 "message"
             ] = f"Contact for invoice {record['InvoiceNumber']} not found."
             return None, False, state_updates
+        # if there's an error while pre_processing raise it
+        if "error" in record:
+            return None, False, {"error": record["error"]}
+        
+        # post the record to xero
         client = self.get_client()
         state_updates = dict()
         response = client.push(self.endpoint, record)
@@ -688,22 +693,35 @@ class BillPaymentsSink(XeroRecordSink):
 
     def preprocess_record(self, record: dict, context: dict) -> dict:
         try:
-            account_name = record.get("accountName")
-            account_code = record.get("accountNumber")
 
-            if not account_code and not account_name:
-                raise Exception(f"No account code or account name was provided.")
-            if account_name and not account_code:
-                account_code = self.get_account_code(account_name)
-            if not account_code:
-                raise Exception(f"Account '{account_name}' was not found.")
-            
             payload = {
                 "Invoice": { "InvoiceID": record.get("transactionId") },
-                "Account": { "Code": account_code },
+                "Account": {},
                 "Date": record.get("date"),
                 "Amount": record.get("amount")
             }
+
+            #use account id if provided            
+            account_id = record.get("accountId")
+            account_name = record.get("accountName")
+            account_code = record.get("accountNumber")
+
+            if not account_code and not account_name and not account_id:
+                raise Exception(f"No account code or account name or account id was provided.")
+            
+            if account_id:
+                payload["Account"]["AccountID"] = account_id
+            
+            elif account_code:
+                payload["Account"]["Code"] = account_code
+            
+            elif account_name:
+                account_code = self.get_account_code(account_name)
+                if not account_code:
+                    raise Exception(f"Account '{account_name}' was not found.")
+                payload["Account"]["Code"] = account_code
+
             return payload
+
         except Exception as e:
-            return {"error": e}
+            return {"error": str(e)}
