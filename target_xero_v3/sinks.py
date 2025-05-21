@@ -42,23 +42,36 @@ class XeroSink:
         self.aus_uk_nz = bool(self.config.get("aus_nz_uk"))
         # Default set to true for Tessaract test it more easyily.
 
-    def get_account_status(self, record):
+    def get_invoice_upsert_status(self, record):
+        """
+            Returns update status is based on https://developer.xero.com/documentation/api/accounting/invoices#invoice-status-codes:~:text=VOIDED-,Updating%20Invoices,-You%20can%20only
+                'new_record': is a new record
+                'full': can perform update normally
+                'partial': only some fields can be updated
+                'blocked': cannot update invoice 
+            
+        """
         client = self.get_client()
+        
         # Check if the invoice exists
         try:
             invoice = client.filter(
                 "Invoices", invoice_number=record.get("invoiceNumber")
             )
-            # Check if it has been approved
-            if invoice[0].get("Status") not in ["AUTHORISED", "PAID"]:
-                # If status is not 'AUTHORISED' or 'PAID'
-                # Return the record to be updated
-                return record
-            # Else return an empty record
-            return None
+            
+            invoice_status = invoice[0].get("Status")
+            invoice_payments = invoice[0].get("Payments")
+
+            # checks if the invoice is paid or partially paid
+            if invoice_status == "PAID" or (invoice_status == "AUTHORISED" and invoice_payments):
+                # if it's a bill it cannot be updated
+                # if it's an invoice it can be partially updated
+                return "blocked" if invoice[0].get("Type") == "ACCPAY" else "partial"
+
+            return 'full'
         except:
             # If the GET fails just pass the record and it will create a new Invoice
-            return record
+            return 'new_record'
 
     def get_tax_list(self):
         if not self.tax_list:
@@ -528,17 +541,36 @@ class InvoicesSink(XeroRecordSink):
     stream_endpoint = "invoices"
 
     def preprocess_record(self, record: dict, context: dict) -> dict:
-        invoice_number = record.get("invoiceNumber")
-        record = self.get_account_status(record)
-        if record:
-            invoice = self.prepare_payload(record, self.stream_endpoint)
-            if invoice is not None:
-                invoice["Type"] = self.config.get("invoice_type", "ACCREC")
-            return invoice
-        return {"id": invoice_number}
+        upsert_status = self.get_invoice_upsert_status(record)
+
+        if upsert_status == "blocked":
+            invoice_number = record.get("invoiceNumber")
+            return {"upsert_status": upsert_status, "InvoiceNumber": invoice_number}
+        
+        invoice = self.prepare_payload(record, self.stream_endpoint)
+        
+        if invoice is not None:
+            invoice["Type"] = self.config.get("invoice_type", "ACCREC")
+            
+            # if partial update we have to filter only the allowed fields
+            if upsert_status == "partial":
+                allowed_fields = ["InvoiceNumber", "Reference", "DueDate", "BrandingThemeID", "URL"]
+                invoice = {k: v for k, v in invoice.items() if k in allowed_fields}
+        
+        return {"upsert_status": upsert_status, **invoice }
 
     def upsert_record(self, record: dict, context: dict):
         state_updates = dict()
+
+        upsert_status = record.pop("upsert_status", "new_record")
+        is_update = upsert_status != "new_record"
+
+        if upsert_status == "blocked":
+            invoice_number = record.get("InvoiceNumber")
+            state_updates["success"] = False
+            state_updates["message"] = f"The invoice {invoice_number} is in a state that cannot be updated"
+            return invoice_number, False, state_updates
+
         if record:
             id = None
             client = self.get_client()
@@ -546,6 +578,7 @@ class InvoicesSink(XeroRecordSink):
             self.log_request_response(record, response)
             if response.status_code in [200]:
                 state_updates["success"] = True
+                state_updates["is_updated"] = is_update
                 id = response.json().get("Id")
             elif response.status_code == 400:
                 state_updates["success"] = False
@@ -560,13 +593,36 @@ class BillsSink(XeroRecordSink):
     stream_endpoint = "bills"
 
     def preprocess_record(self, record: dict, context: dict) -> dict:
-        record = self.get_account_status(record)
-        if record:
-            invoice = self.prepare_payload(record, self.stream_endpoint)
-            if invoice is not None:
-                invoice["Type"] = self.config.get("invoice_type", "ACCPAY")
-        return invoice
+        upsert_status = self.get_invoice_upsert_status(record)
 
+        if upsert_status == "blocked":
+            invoice_number = record.get("invoiceNumber")
+            return {"upsert_status": upsert_status, "InvoiceNumber": invoice_number}
+        
+        invoice = self.prepare_payload(record, self.stream_endpoint)
+
+        if invoice is not None:
+            invoice["Type"] = self.config.get("invoice_type", "ACCPAY")
+
+        return {"upsert_status": upsert_status, **invoice }
+    
+    def upsert_record(self, record: dict, context: dict):
+        upsert_status = record.pop("upsert_status", "new_record")
+        is_update = upsert_status != "new_record"
+
+        if upsert_status == "blocked":
+            invoice_number = record.get("InvoiceNumber")
+            state_updates = {}
+            state_updates["success"] = False
+            state_updates["message"] = f"The invoice {invoice_number} is in a state that cannot be updated"
+            return invoice_number, False, state_updates
+
+        id, success, state_update = super().upsert_record(record, context)
+        if state_update.get("success") and is_update:
+            state_update["is_updated"] = True
+        
+        return id, success, state_update
+        
 
 class JournalEntriesSink(XeroRecordSink):
     endpoint = "Manual_Journals"
