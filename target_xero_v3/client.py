@@ -234,6 +234,7 @@ class XeroClient:
 
             # Write to config file
             self.config["refresh_token"] = resp["refresh_token"]
+            LOGGER.info(f"DEBUG: Updating REFRESH TOKEN: {resp['refresh_token']}")
             self.config["access_token"] = resp["access_token"]
             update_config_file(self.config, self.config_path)
             self.access_token = resp["access_token"]
