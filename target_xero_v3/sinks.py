@@ -568,7 +568,7 @@ class InvoicesSink(XeroRecordSink):
         if upsert_status == "blocked":
             invoice_number = record.get("InvoiceNumber")
             state_updates["success"] = False
-            state_updates["message"] = f"The invoice {invoice_number} is in a state that cannot be updated"
+            state_updates["error"] = f"The invoice {invoice_number} is in a state that cannot be updated"
             return invoice_number, False, state_updates
 
         if record:
@@ -580,9 +580,10 @@ class InvoicesSink(XeroRecordSink):
                 state_updates["success"] = True
                 state_updates["is_updated"] = is_update
                 id = response.json().get("Id")
-            elif response.status_code == 400:
+            else:
                 state_updates["success"] = False
-                state_updates["message"] = response.text
+                state_updates["error"] = response.text
+                self.logger.error(f"Request failed: {response.status_code} - {response.text}")
             return id, response.ok, state_updates
         return record.get("id"), True, state_updates
 
@@ -614,7 +615,7 @@ class BillsSink(XeroRecordSink):
             invoice_number = record.get("InvoiceNumber")
             state_updates = {}
             state_updates["success"] = False
-            state_updates["message"] = f"The invoice {invoice_number} is in a state that cannot be updated"
+            state_updates["error"] = f"The invoice {invoice_number} is in a state that cannot be updated"
             return invoice_number, False, state_updates
 
         id, success, state_update = super().upsert_record(record, context)
@@ -736,9 +737,10 @@ class BankTransactionSink(XeroRecordSink):
             if response.status_code in [200]:
                 state_updates["success"] = True
                 id = response.json().get("Id")
-            elif response.status_code == 400:
+            else:
                 state_updates["success"] = False
-                state_updates["message"] = response.text
+                state_updates["error"] = response.text
+                self.logger.error(f"Request failed: {response.status_code} - {response.text}")
             return id, response.ok, state_updates
         return record.get("id"), True, state_updates
 
