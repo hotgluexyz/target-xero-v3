@@ -98,7 +98,11 @@
       "discount": "DiscountRate",
       "discountAmount": "DiscountAmount",
       "classId":"classId",
-      "className":"className"
+      "className":"className",
+      "customFields": {
+        "name": "TrackingCategoryName",
+        "value": "TrackingCategoryValue"
+      }
     },
     "address": {
       "line1": "AddressLine1",
