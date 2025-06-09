@@ -354,7 +354,7 @@ class XeroClient:
             return response_body
 
     @backoff.on_exception(
-        backoff.expo, (json.decoder.JSONDecodeError, XeroInternalError), max_tries=3
+        backoff.expo, (json.decoder.JSONDecodeError, XeroInternalError, XeroBadRequestError), max_tries=3
     )
     @backoff.on_exception(
         wait_gen=retry_after_wait_gen,
