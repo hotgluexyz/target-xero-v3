@@ -551,6 +551,10 @@ class InvoicesSink(XeroRecordSink):
         
         if invoice is not None:
             invoice["Type"] = self.config.get("invoice_type", "ACCREC")
+
+            if invoice.get("Status") == "VOIDED":
+                allowed_fields = ["InvoiceNumber", "Status"]
+                invoice = {k: v for k, v in invoice.items() if k in allowed_fields}
             
             # if partial update we have to filter only the allowed fields
             if upsert_status == "partial":
