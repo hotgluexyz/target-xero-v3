@@ -187,7 +187,7 @@ def retry_after_wait_gen():
         # and check it.
         exc_info = sys.exc_info()
         resp = exc_info[1].response
-        sleep_time_str = int(resp.headers.get("Retry-After")) + 2
+        sleep_time_str = int(resp.headers.get("Retry-After", 0)) + 2
         LOGGER.info(
             "API rate limit exceeded -- sleeping for %s seconds", sleep_time_str
         )
@@ -278,6 +278,14 @@ class XeroClient:
         jitter=None,
         max_tries=3,
     )
+    def _http_request(self, method: str, path: str, **kwargs) -> requests.Response:
+        url = join(BASE_URL, path)
+        request = requests.Request(method, url, **kwargs)
+        response = self.session.send(request.prepare())
+        raise_for_error(response)
+        return response
+    
+
     def check_platform_access(self, access_token, tenant_id):
         # Validating the authentication of the provided configuration
         # self.refresh_credentials(config, config_path)
@@ -291,10 +299,7 @@ class XeroClient:
         # headers = self.authorization(headers)
 
         # Validating the authorization of the provided configuration
-        contacts_url = join(BASE_URL, "Contacts")
-        request = requests.Request("GET", contacts_url, headers=headers)
-        response = self.session.send(request.prepare())
-        raise_for_error(response)
+        response = self._http_request("GET", "Contacts", headers=headers)
 
         if response.status_code != 200:
             return False
@@ -303,25 +308,16 @@ class XeroClient:
         )
         # This will help us keep track of the API Rate Limits
         return True
+    
 
-    @backoff.on_exception(
-        backoff.expo, (json.decoder.JSONDecodeError, XeroInternalError), max_tries=3
-    )
-    @backoff.on_exception(
-        wait_gen=retry_after_wait_gen,
-        exception=XeroTooManyInMinuteError,
-        giveup=is_not_status_code_fn([429]),
-        jitter=None,
-        max_tries=3,
-    )
     def filter(self, tap_stream_id, since=None, invoice_number=None, **params):
         #Verify credentials
         self.refresh_credentials()
         xero_resource_name = tap_stream_id.title().replace("_", "")
         if not invoice_number:
-            url = join(BASE_URL, xero_resource_name)
+            path = xero_resource_name
         else:
-            url = join(BASE_URL, f"Invoices/{invoice_number}")
+            path = f"Invoices/{invoice_number}"
 
         headers = {
             "Accept": "application/json",
@@ -335,8 +331,7 @@ class XeroClient:
         if since:
             headers["If-Modified-Since"] = since
 
-        request = requests.Request("GET", url, headers=headers, params=params)
-        response = self.session.send(request.prepare())
+        response = self._http_request("GET", path, headers=headers, params=params)
 
         if response.status_code not in [200, 201]:
             raise_for_error(response)
@@ -353,19 +348,9 @@ class XeroClient:
                 response_body = response_meta.pop(tap_stream_id)
             return response_body
 
-    @backoff.on_exception(
-        backoff.expo, (json.decoder.JSONDecodeError, XeroInternalError, XeroBadRequestError), max_tries=3
-    )
-    @backoff.on_exception(
-        wait_gen=retry_after_wait_gen,
-        exception=XeroTooManyInMinuteError,
-        giveup=is_not_status_code_fn([401]),
-        jitter=None,
-        max_tries=3,
-    )
     def push(self, tap_stream_id, payload):
         xero_resource_name = tap_stream_id.title().replace("_", "")
-        url = join(BASE_URL, xero_resource_name)
+        path = xero_resource_name
 
         self.refresh_credentials()
 
@@ -378,10 +363,7 @@ class XeroClient:
         if self.user_agent:
             headers["User-Agent"] = self.user_agent
 
-        request = requests.Request("POST", url, headers=headers, json=payload)
-        response = self.session.send(request.prepare())
-
-        raise_for_error(response)
+        response = self._http_request("POST", path, headers=headers, json=payload)
         return response
 
 
