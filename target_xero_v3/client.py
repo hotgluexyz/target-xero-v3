@@ -341,7 +341,7 @@ class XeroClient:
         if since:
             headers["If-Modified-Since"] = since
 
-        LOGGER.info(f"Fetching data from {url} with params {params}")
+        LOGGER.info(f"Fetching data from {path} with params {params}")
         response = self._http_request("GET", path, headers=headers, params=params)
 
         LOGGER.info(f"Response: {response.status_code} - {response.text}".replace('\r\n', ''))
