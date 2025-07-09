@@ -39,6 +39,7 @@ class XeroSink:
         self.account_codes = []
         self.cat_list = []
         self.tax_list = []
+        self.contacts_cache = []
         self.aus_uk_nz = bool(self.config.get("aus_nz_uk"))
         # Default set to true for Tessaract test it more easyily.
 
@@ -110,6 +111,19 @@ class XeroSink:
             client = self.get_client()
             self.cat_list = client.filter("Tracking_Categories")
         return self.cat_list
+
+    def save_contact_to_cache(self, contact):
+        self.contacts_cache.append({
+            "ContactID": contact.get("ContactID"),
+            "Name": contact.get("Name"),
+            "EmailAddress": contact.get("EmailAddress")
+        })
+
+    def get_contact_from_cache(self, name=None, email=None):
+        return next(
+            (contact for contact in self.contacts_cache
+             if contact.get("ContactID") and ((name and contact.get("Name") == name) or (email and contact.get("EmailAddress") == email))
+            ), None)
 
     def prepare_accounts_categories(self):
         acc_list = self.get_accounts_list()
@@ -231,12 +245,18 @@ class XeroSink:
             contact_detail = None
             # Do bills need this check to?
             if "customerEmail" in record:
-                contact_detail = client.filter(
-                    "Contacts",
-                    where='EmailAddress=="{}"'.format(record["customerEmail"]),
-                )
+                contact_detail = self.get_contact_from_cache(email=record["customerEmail"])
+
+                if contact_detail is None:
+                    contact_detail = client.filter(
+                        "Contacts",
+                        where='EmailAddress=="{}"'.format(record["customerEmail"]),
+                    )
+                    if contact_detail:
+                        self.save_contact_to_cache(contact_detail[0])
+                        contact_detail = contact_detail[0]
+
                 if contact_detail:
-                    contact_detail = contact_detail[0]
                     payload["Contact"]["ContactID"] = contact_detail["ContactID"]
                 else:
                     LOGGER.warning(
@@ -247,12 +267,18 @@ class XeroSink:
             if "Contact" in payload and contact_detail is None:
                 if "ContactID" not in payload["Contact"]:
                     # invoices = client.filter("Invoices",IDs='INV-ID')
-                    contact_detail = client.filter(
-                        "Contacts",
-                        where='Name=="{}"'.format(payload["Contact"]["Name"]),
-                    )
+                    contact_detail = self.get_contact_from_cache(name=payload["Contact"]["Name"])
+
+                    if contact_detail is None:
+                        contact_detail = client.filter(
+                            "Contacts",
+                            where='Name=="{}"'.format(payload["Contact"]["Name"]),
+                        )
+                        if contact_detail:
+                            self.save_contact_to_cache(contact_detail[0])
+                            contact_detail = contact_detail[0]
+
                     if contact_detail:
-                        contact_detail = contact_detail[0]
                         payload["Contact"]["ContactID"] = contact_detail["ContactID"]
                     else:
                         LOGGER.warning(
@@ -260,9 +286,9 @@ class XeroSink:
                         )
                         payload.update({"contact_not_found": True})
                         return payload
-                # We already have separate logic for Credit Notes line items.    
-                if stream_name != "credit_notes":
-                    payload["LineItems"] = self.prepare_invoice_lineitems(payload)
+            # We already have separate logic for Credit Notes line items.    
+            if stream_name != "credit_notes":
+                payload["LineItems"] = self.prepare_invoice_lineitems(payload)
             if "Contact" not in payload:
                 payload.update({"contact_not_found": True})        
             elif "ContactID" not in payload['Contact']:
@@ -489,12 +515,12 @@ class XeroRecordSink(XeroSink, HotglueSink):
         else:
             state_updates["success"] = False
             state_updates["error"] = response.json()
-            self.logger.error(f"Request failed: {response.status_code} - {response.text}")
+            self.logger.error(f"Request failed: {response.status_code} - {response.text}".replace('\r\n', ''))
         return id, response.ok, state_updates
 
     def log_request_response(self, record, response):
         self.logger.info(f"Sending payload for stream {self.name}: {record}")
-        self.logger.info(f"Response: {response.text}")
+        self.logger.info(f"Response: {response.text}".replace('\r\n', ''))
 
 
 class TaxRatesSink(XeroRecordSink):
@@ -587,7 +613,7 @@ class InvoicesSink(XeroRecordSink):
             else:
                 state_updates["success"] = False
                 state_updates["error"] = response.text
-                self.logger.error(f"Request failed: {response.status_code} - {response.text}")
+                self.logger.error(f"Request failed: {response.status_code} - {response.text}".replace('\r\n', ''))
             return id, response.ok, state_updates
         return record.get("id"), True, state_updates
 
@@ -744,7 +770,7 @@ class BankTransactionSink(XeroRecordSink):
             else:
                 state_updates["success"] = False
                 state_updates["error"] = response.text
-                self.logger.error(f"Request failed: {response.status_code} - {response.text}")
+                self.logger.error(f"Request failed: {response.status_code} - {response.text}".replace('\r\n', ''))
             return id, response.ok, state_updates
         return record.get("id"), True, state_updates
 
