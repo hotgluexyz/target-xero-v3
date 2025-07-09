@@ -4,7 +4,7 @@ import math
 import re
 import sys
 from base64 import b64encode
-from datetime import date, datetime, time, timedelta
+from datetime import date, datetime, time, timedelta, timezone
 from os.path import join
 
 import backoff
@@ -12,6 +12,7 @@ import pytz
 import requests
 import singer
 import six
+import jwt
 from singer.utils import strftime, strptime_to_utc
 
 LOGGER = singer.get_logger()
@@ -193,6 +194,14 @@ def retry_after_wait_gen():
         )
         yield math.floor(float(sleep_time_str))
 
+def get_token_expiration_time(access_token):
+    try:
+        decoded_token = jwt.decode(access_token, options={"verify_signature": False})
+        return datetime.fromtimestamp(decoded_token["exp"], tz=pytz.UTC)
+    except Exception as e:
+        LOGGER.error(f"Error decoding token: {e}")
+        return None
+
 
 class XeroClient:
     def __init__(self, config, config_paht):
@@ -202,7 +211,7 @@ class XeroClient:
         self.config_path = config_paht
         self.tenant_id = config.get("tenant_id")
         self.access_token = config.get("access_token")
-        self.last_refreshed = None
+        self.expiration_time = None
 
     def generate_new_credentials(self):
         LOGGER.info("DEBUG: REFRESHING CREDENTIALS")
@@ -238,19 +247,19 @@ class XeroClient:
             self.config["access_token"] = resp["access_token"]
             update_config_file(self.config, self.config_path)
             self.access_token = resp["access_token"]
-            self.last_refreshed = datetime.utcnow()
+            self.expiration_time = get_token_expiration_time(self.access_token)
 
     def refresh_credentials(self) -> None:
         # Check if the ACCESS token in config is valid
 
-        if self.last_refreshed is None:
-            # If no last_refreshed is provided, check if the token in the config is valid
+        if self.expiration_time is None:
+            # If no expiration_time is provided, check if the token in the config is valid
             valid = self.check_platform_access(self.access_token, self.tenant_id)
         else:
-            # If last_refreshed is provided and 25 mins (Xero gives 30 min) have passed since last refresh,
+            # If expiration_time is provided and 25 mins (Xero gives 30 min) have passed since last refresh,
             # refresh the token is not considered valid,
             # else it's valid and should not be refreshed or checked. (to avois waste of quota)
-            if self.last_refreshed + timedelta(minutes=25) > datetime.utcnow():
+            if self.expiration_time - timedelta(minutes=5) > datetime.now(timezone.utc):
                 valid = True
             else:
                 valid = False
@@ -289,7 +298,7 @@ class XeroClient:
     def check_platform_access(self, access_token, tenant_id):
         # Validating the authentication of the provided configuration
         # self.refresh_credentials(config, config_path)
-
+        LOGGER.info("DEBUG: CHECKING PLATFORM ACCESS")
         headers = {
             "Authorization": "Bearer " + access_token,
             "Xero-Tenant-Id": tenant_id,
@@ -307,6 +316,7 @@ class XeroClient:
             f"DEBUG: Xero DayLimit-Remaining: {response.headers.get('X-DayLimit-Remaining')}"
         )
         # This will help us keep track of the API Rate Limits
+        self.expiration_time = get_token_expiration_time(self.access_token)
         return True
     
 
@@ -331,7 +341,10 @@ class XeroClient:
         if since:
             headers["If-Modified-Since"] = since
 
+        LOGGER.info(f"Fetching data from {url} with params {params}")
         response = self._http_request("GET", path, headers=headers, params=params)
+
+        LOGGER.info(f"Response: {response.status_code} - {response.text}".replace('\r\n', ''))
 
         if response.status_code not in [200, 201]:
             raise_for_error(response)
