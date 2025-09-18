@@ -170,6 +170,13 @@ class XeroSink:
                 line_amt = -1 * line_amt
 
             line_item = {"Description": row.get("description"), "LineAmount": line_amt}
+            
+            if row.get("customFields"):
+                line_item["Tracking"] = [
+                    {"Name": field.get("name"), "Option": field.get("value")}
+                    for field in row["customFields"]
+                    if field.get("name") and field.get("value")
+                ]
 
             acct_num = str(row.get("accountNumber"))
             acct_name = row.get("accountName")
