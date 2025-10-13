@@ -19,7 +19,7 @@
       "state": "Region",
       "postalCode": "PostalCode",
       "country": "Country",
-      "type": "AddressType"
+      "addressType": "AddressType"
     },
     "currency": "DefaultCurrency"
   },
