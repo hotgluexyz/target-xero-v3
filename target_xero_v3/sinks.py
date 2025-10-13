@@ -414,6 +414,11 @@ class CustomerSink(XeroSink, HotglueBatchSink):
     isCustomer = True
     isSupplier = False
 
+    def map_address_type(self, type):
+        if type == "Billing":
+            return "POBOX"
+        return "STREET"
+
     def transform_customer_payload(self, payload, record):
         for list_field in ["addresses", "phones"]:
             if isinstance(payload.get(list_field), dict):
@@ -424,7 +429,7 @@ class CustomerSink(XeroSink, HotglueBatchSink):
         if payload.get("addresses"):
             for address in payload.get("addresses"):
                 # lets default to Street type for now.
-                address.update({"AddressType": "STREET"})
+                address.update({"AddressType": self.map_address_type(address.get('AddressType'))})
         if payload.get("phones"):
             for phone in payload.get("phones"):
                 # lets default to Street type for now.
