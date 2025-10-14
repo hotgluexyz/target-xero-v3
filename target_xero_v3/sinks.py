@@ -445,8 +445,10 @@ class CustomerSink(XeroSink, HotglueBatchSink):
 
     def process_batch_record(self, record: dict, context: dict) -> dict:
         mapping = UnifiedMapping()
+        external_id = record.get("externalId")
         payload = mapping.prepare_payload(record, self.stream_endpoint, target="xero")
         payload = self.transform_customer_payload(payload, record)
+        payload["externalId"] = external_id
         return payload
 
     def handle_batch_response(self, response) -> dict:
@@ -488,16 +490,39 @@ class CustomerSink(XeroSink, HotglueBatchSink):
             self.init_state()
 
         raw_records = context["records"]
+        records = []
+        updates_state = []
+        batch_post_state = []
+        for record in enumerate(raw_records):
+            externalId = record[1].get("externalId")
+            record = self.process_batch_record(record[1], record[0])
+            # if process_batch_record did an update or failed while mapping it will return a state
+            if "success" in record:
+                # add externalId to each invoice state
+                record.update({"externalId": externalId})
+                updates_state.append(record)
+            # else add record to the batch payload that will be posted
+            else:
+                records.append({"externalId": externalId, "payload": record})
 
-        records = list(
-            map(lambda e: self.process_batch_record(e[1], e[0]), enumerate(raw_records))
-        )
+        # Make batch request
+        batch_request_records = [record["payload"] for record in records]
+        external_ids = [record["externalId"] for record in records]
+        try:
+            response = self.make_batch_request(batch_request_records)
+            batch_result = self.handle_batch_response(response)
+        except Exception as e:
+            batch_result = {"success": False, "error": f"Batch failure with response {str(e)}"}
 
-        response = self.make_batch_request(records)
+        # add externalId to each state
+        all_states = []
+        for i,invoice in enumerate(batch_result.get("state_updates", [])):
+            invoice["externalId"] = external_ids[i]
+            all_states.append(invoice)
 
-        result = self.handle_batch_response(response)
-
-        for state in result.get("state_updates", list()):
+        # join update states, failed states and succesful states
+        for state in all_states:
+            # update state
             self.update_state(state)
 
 
@@ -577,6 +602,7 @@ class InvoicesSink(XeroRecordSink):
     endpoint = "Invoices"
     name = "Invoices"
     stream_endpoint = "invoices"
+    relation_fields = [{"field": "customerId", "objectName": "Customers"}]
 
     def preprocess_record(self, record: dict, context: dict) -> dict:
         upsert_status = self.get_invoice_upsert_status(record)
