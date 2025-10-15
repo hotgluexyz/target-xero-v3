@@ -579,6 +579,7 @@ class InvoicesSink(XeroRecordSink):
     stream_endpoint = "invoices"
 
     def preprocess_record(self, record: dict, context: dict) -> dict:
+        record["invoiceNumber"] = record.get("invoiceNumber", "").strip()
         upsert_status = self.get_invoice_upsert_status(record)
 
         if upsert_status == "blocked":
