@@ -579,7 +579,9 @@ class InvoicesSink(XeroRecordSink):
     stream_endpoint = "invoices"
 
     def preprocess_record(self, record: dict, context: dict) -> dict:
-        record["invoiceNumber"] = record.get("invoiceNumber", "").strip()
+        record["invoiceNumber"] = record.get("invoiceNumber").strip()
+        if len(record.get("invoiceNumber")) > 255:
+            raise Exception(f"Invoice number is too long, expected 255 characters got {len(record.get('invoiceNumber'))}: {record.get('invoiceNumber')}")
         upsert_status = self.get_invoice_upsert_status(record)
 
         if upsert_status == "blocked":
@@ -637,6 +639,9 @@ class BillsSink(XeroRecordSink):
     stream_endpoint = "bills"
 
     def preprocess_record(self, record: dict, context: dict) -> dict:
+        record["invoiceNumber"] = record.get("invoiceNumber", "").strip()
+        if len(record.get("invoiceNumber")) > 255:
+            raise Exception(f"Invoice number is too long, expected 255 characters got {len(record.get('invoiceNumber'))}: {record.get('invoiceNumber')}")
         upsert_status = self.get_invoice_upsert_status(record)
 
         if upsert_status == "blocked":
