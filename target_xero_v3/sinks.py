@@ -831,3 +831,7 @@ class BillPaymentsSink(XeroRecordSink):
 
         except Exception as e:
             return {"error": str(e)}
+
+
+class InvoicePaymentsSink(BillPaymentsSink):
+    name = "InvoicePayments"
