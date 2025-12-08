@@ -523,7 +523,7 @@ class XeroRecordSink(XeroSink, HotglueSink):
         self.log_request_response(record, response)
         if response.status_code in [200]:
             state_updates["success"] = True
-            id = response.json().get("Id")
+            id = response.json().get(self.endpoint)[0].get(self.primary_key)
         else:
             state_updates["success"] = False
             state_updates["error"] = response.json()
@@ -539,6 +539,7 @@ class TaxRatesSink(XeroRecordSink):
     endpoint = "TaxRates"
     name = "TaxRates"
     stream_endpoint = "contacts"
+    primary_key = "Name" # no id or code field
 
     def preprocess_record(self, record: dict, context: dict) -> dict:
         taxes = self.get_tax_list()
@@ -552,6 +553,7 @@ class ItemsSink(XeroRecordSink):
     endpoint = "Items"
     name = "Items"
     stream_endpoint = "items"
+    primary_key = "ItemID"
 
     def preprocess_record(self, record: dict, context: dict) -> dict:
         mapping = UnifiedMapping()
@@ -577,6 +579,7 @@ class InvoicesSink(XeroRecordSink):
     endpoint = "Invoices"
     name = "Invoices"
     stream_endpoint = "invoices"
+    primary_key = "InvoiceID"
 
     def preprocess_record(self, record: dict, context: dict) -> dict:
         record["invoiceNumber"] = record.get("invoiceNumber").strip()
@@ -624,7 +627,7 @@ class InvoicesSink(XeroRecordSink):
             if response.status_code in [200]:
                 state_updates["success"] = True
                 state_updates["is_updated"] = is_update
-                id = response.json().get("Id")
+                id = response.json().get("Invoices")[0].get(self.primary_key)
             else:
                 state_updates["success"] = False
                 state_updates["error"] = response.text
@@ -637,6 +640,7 @@ class BillsSink(XeroRecordSink):
     endpoint = "Invoices"
     name = "Bills"
     stream_endpoint = "bills"
+    primary_key = "InvoiceID"
 
     def preprocess_record(self, record: dict, context: dict) -> dict:
         record["invoiceNumber"] = record.get("invoiceNumber", "").strip()
@@ -686,6 +690,7 @@ class CreditNotesSink(XeroRecordSink):
     endpoint = "CreditNotes"
     name = "CreditNotes"
     stream_endpoint = "credit_notes"
+    primary_key = "CreditNoteID"
 
     def preprocess_record(self, record: dict, context: dict) -> dict:
         item = self.prepare_payload(record, self.stream_endpoint)
@@ -696,6 +701,7 @@ class QuotesSink(XeroRecordSink):
     endpoint = "Quotes"
     name = "Quotes"
     stream_endpoint = "quotes"
+    primary_key = "QuoteID"
 
     def preprocess_record(self, record: dict, context: dict) -> dict:
         item = self.prepare_payload(record, self.stream_endpoint)
@@ -719,6 +725,7 @@ class BankTransactionSink(XeroRecordSink):
     name = "BankTransactions"
     endpoint = "BankTransactions"
     stream_endpoint = "bank_transactions"
+    primary_key = "BankTransactionID"
 
     def preprocess_record(self, record: dict, context: dict) -> dict:
         client = self.get_client()
@@ -796,6 +803,7 @@ class BankTransactionSink(XeroRecordSink):
 class BillPaymentsSink(XeroRecordSink):
     name = "BillPayments"
     endpoint = "Payments"
+    primary_key = "PaymentID"
 
     def preprocess_record(self, record: dict, context: dict) -> dict:
         try:
