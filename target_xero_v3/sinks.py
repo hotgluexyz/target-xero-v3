@@ -843,3 +843,27 @@ class BillPaymentsSink(XeroRecordSink):
 
 class InvoicePaymentsSink(BillPaymentsSink):
     name = "InvoicePayments"
+
+    def get_invoice(self, invoice_number: str):
+        client = self.get_client()
+        invoice = client.filter(
+            "Invoices", invoice_number=invoice_number
+        )
+        
+        if not invoice or len(invoice) == 0:
+            raise Exception(f"Invoice {invoice_number} not found.")
+
+        if len(invoice) > 1:
+            raise Exception(f"Multiple invoices found for {invoice_number}.")
+        
+        return invoice[0]
+
+    def preprocess_record(self,record: dict, context: dict) -> dict:
+
+        if record.get("invoiceNumber") and not record.get("transactionId"):
+            invoice = self.get_invoice(record.get("invoiceNumber"))
+            record["transactionId"] = invoice.get("InvoiceID")
+
+        payload = super().preprocess_record(record, context)
+        return payload
+
