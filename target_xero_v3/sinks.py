@@ -36,7 +36,8 @@ class XeroSink:
         self.config_file = target.config_file
         self.all_items = []
         self.acc_list = []
-        self.account_codes = []
+        self.account_codes = {}
+        self._valid_account_codes = set()
         self.cat_list = []
         self.tax_list = []
         self.contacts_cache = []
@@ -90,21 +91,26 @@ class XeroSink:
 
     def get_account_code(self, account_name):
         accounts = self.get_accounts_list()
-        # Make sure we don't do lookup on string account code
-        account_name = account_name.lower()
-        if account_name.isdigit():
-            return account_name
         if not self.account_codes:
             codes = {}
+            valid_codes = set()
             for account in accounts:
                 if "Code" in account:
-                    codes.update({account["Name"].lower(): account["Code"]})
+                    codes[account["Name"]] = account["Code"]
+                    # Also track valid codes (lowercased for comparison)
+                    valid_codes.add(account["Code"])
             self.account_codes = codes
-            del codes
+            self._valid_account_codes = valid_codes
+        
+        # Check if account_name is already a valid account code (handles codes with dashes, letters, etc.)
+        if account_name in self._valid_account_codes:
+            return account_name
+        
+        # Otherwise try to look up by name
         if account_name in self.account_codes:
             return self.account_codes[account_name]
-        else:
-            return None
+        
+        return None
 
     def get_tracking_categories_list(self):
         if not self.cat_list:
@@ -316,18 +322,22 @@ class XeroSink:
         return payload
 
     def prepare_invoice_lineitems(self, payload):
+        invoice_number = payload.get("InvoiceNumber")
         lineItems = payload["LineItems"]
         items = []
         allItems = self.get_all_items()
         self.tax_list = None
         taxes = self.get_tax_list()
-        for lineItem in lineItems:
+        for idx, lineItem in enumerate(lineItems):
             itemName = None
+            item_lookup_value = None
             if lineItem.get("ItemCode"):
                 itemName = lineItem.get("ItemCode")
+                item_lookup_value = itemName
                 lookup_key = "Code"
             elif lineItem.get("ItemName"):
                 itemName = lineItem.get("ItemName")
+                item_lookup_value = itemName
                 lookup_key = "Name"
             if itemName:
                 item = self.get_item(itemName, lookup_key)
@@ -339,18 +349,32 @@ class XeroSink:
                         "Code": item["Code"],
                     }
                     lineItem["ItemCode"] = item["Code"]
+                else:
+                    # Item was specified but not found
+                    payload.update({"error": f"Invoice {invoice_number}: Line item {idx + 1}: Item '{item_lookup_value}' (lookup by {lookup_key}) not found in Xero. "})
             if lineItem.get("Description") is None:
                 lineItem["Description"] = "Created via API"
             tax_type = lineItem.get("TaxType")
             if taxes is not None:
                 if tax_type in taxes.keys() and tax_type is not None:
                     lineItem["TaxType"] = taxes[tax_type]
+            
+            original_account_code = lineItem.get("AccountCode")
             if "AccountCode" in lineItem:
                 # check if we need to lookup account code
                 if isinstance(lineItem["AccountCode"], str):
                     lineItem["AccountCode"] = self.get_account_code(
                         lineItem["AccountCode"]
                     )
+
+            has_account = lineItem.get("AccountCode") is not None
+            has_item = lineItem.get("Item") is not None
+            
+            if original_account_code and not has_account:
+                payload.update({"error": f"Invoice {invoice_number}: Line item {idx + 1}: Could not find account '{original_account_code}' in Xero. "})
+
+            if not has_item and not has_account:
+                payload.update({"error": f"Invoice {invoice_number}: Line item {idx + 1} has no valid item or account. "})
 
             tracking_items = []
             client = self.get_client()
@@ -610,6 +634,12 @@ class InvoicesSink(XeroRecordSink):
     def upsert_record(self, record: dict, context: dict):
         state_updates = dict()
 
+        # if there's an error while pre_processing raise it
+        if "error" in record:
+            state_updates["success"] = False
+            state_updates["error"] = record["error"]
+            return None, False, state_updates
+
         upsert_status = record.pop("upsert_status", "new_record")
         is_update = upsert_status != "new_record"
 
@@ -866,4 +896,3 @@ class InvoicePaymentsSink(BillPaymentsSink):
 
         payload = super().preprocess_record(record, context)
         return payload
-
