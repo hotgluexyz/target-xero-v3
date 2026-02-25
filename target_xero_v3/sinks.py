@@ -299,9 +299,7 @@ class XeroSink:
                         )
                         payload.update({"contact_not_found": True})
                         return payload
-            # We already have separate logic for Credit Notes line items.    
-            if stream_name != "credit_notes":
-                payload["LineItems"] = self.prepare_invoice_lineitems(payload)
+            payload["LineItems"] = self.prepare_invoice_lineitems(payload)
             if "Contact" not in payload:
                 payload.update({"contact_not_found": True})        
             elif "ContactID" not in payload['Contact']:
@@ -322,7 +320,7 @@ class XeroSink:
         return payload
 
     def prepare_invoice_lineitems(self, payload):
-        invoice_number = payload.get("InvoiceNumber")
+        invoice_number = payload.get("InvoiceNumber") or payload.get("creditNoteNumber")
         lineItems = payload["LineItems"]
         items = []
         allItems = self.get_all_items()
