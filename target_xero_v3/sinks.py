@@ -63,12 +63,15 @@ class XeroSink:
             
             invoice_status = invoice[0].get("Status")
             invoice_payments = invoice[0].get("Payments")
-
+            requested_status = record.get("status")
             # checks if the invoice is paid or partially paid
             if invoice_status == "PAID" or (invoice_status == "AUTHORISED" and invoice_payments):
                 # if it's a bill it cannot be updated
-                # if it's an invoice it can be partially updated
-                return "blocked" if invoice[0].get("Type") == "ACCPAY" else "partial"
+                # if it's an already paid invoice it cannot be updated to VOIDED
+                if requested_status == "VOIDED" or invoice[0].get("Type") == "ACCPAY":
+                    return "blocked"
+                else:
+                    return "partial"
 
             return 'full'
         except:
