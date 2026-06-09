@@ -434,6 +434,7 @@ def raise_for_error(resp):
             exc = ERROR_CODE_EXCEPTION_MAPPING.get(error_code, {}).get(
                 "raise_exception", XeroError
             )
+            raise exc(message, resp) from None
 
         except (ValueError, TypeError):
             raise XeroError(error) from None

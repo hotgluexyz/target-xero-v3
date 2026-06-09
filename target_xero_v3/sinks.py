@@ -1,12 +1,9 @@
 """Xero target sink class, which handles writing streams."""
-import json
 import singer
 
 from pendulum import parse
-from datetime import datetime
 from typing import Dict, List, Optional
 
-from singer_sdk.sinks import BatchSink
 from singer_sdk.plugin_base import PluginBase
 
 from target_xero_v3.client import XeroClient
@@ -243,6 +240,76 @@ class XeroSink:
 
         return entry
 
+    def _lookup_contact_by_email(self, client, record):
+        contact_detail = self.get_contact_from_cache(email=record["customerEmail"])
+        if contact_detail is None:
+            contact_detail = client.filter(
+                "Contacts",
+                where='EmailAddress=="{}"'.format(record["customerEmail"]),
+            )
+            if contact_detail:
+                self.save_contact_to_cache(contact_detail[0])
+                contact_detail = contact_detail[0]
+        return contact_detail
+
+    def _lookup_contact_by_name(self, client, contact_name):
+        contact_detail = self.get_contact_from_cache(name=contact_name)
+        if contact_detail is None:
+            contact_detail = client.filter(
+                "Contacts",
+                where='Name=="{}"'.format(contact_name),
+            )
+            if contact_detail:
+                self.save_contact_to_cache(contact_detail[0])
+                contact_detail = contact_detail[0]
+        return contact_detail
+
+    def _resolve_invoice_contact(self, record, payload):
+        client = self.get_client()
+        contact_detail = None
+        if "customerEmail" in record:
+            contact_detail = self._lookup_contact_by_email(client, record)
+            if contact_detail:
+                payload["Contact"]["ContactID"] = contact_detail["ContactID"]
+            else:
+                LOGGER.warning(
+                    f"Warning: Contact with email: {record['customerEmail']} not found."
+                )
+
+        if "Contact" in payload and contact_detail is None:
+            if "ContactID" not in payload["Contact"]:
+                contact_detail = self._lookup_contact_by_name(
+                    client, payload["Contact"]["Name"]
+                )
+                if contact_detail:
+                    payload["Contact"]["ContactID"] = contact_detail["ContactID"]
+                else:
+                    LOGGER.warning(
+                        f"Warning: Contact {payload['Contact']['Name']} not found. Skipping."
+                    )
+                    payload.update({"contact_not_found": True})
+                    return payload
+
+        payload["LineItems"] = self.prepare_invoice_lineitems(payload)
+        if "Contact" not in payload:
+            payload.update({"contact_not_found": True})
+        elif "ContactID" not in payload["Contact"]:
+            payload.update({"contact_not_found": True})
+        return payload
+
+    def _finalize_credit_notes_payload(self, record, payload):
+        for i, item in enumerate(payload["LineItems"]):
+            account_code = self.get_account_code(item["AccountCode"])
+            if account_code:
+                payload["LineItems"][i]["AccountCode"] = account_code
+
+        if payload.get("Date"):
+            payload["Date"] = payload["Date"].split("T")[0]
+
+        payload["LineAmountTypes"] = "Exclusive"
+        payload["Type"] = "ACCPAYCREDIT" if record.get("type") == "AP" else "ACCRECCREDIT"
+        return payload
+
     def prepare_payload(self, record, stream_name):
         mapping = UnifiedMapping()
         payload = mapping.prepare_payload(record, stream_name, target="xero")
@@ -256,157 +323,108 @@ class XeroSink:
                 if not payload.get(list_field):
                     payload.pop(list_field)
         elif stream_name in ["invoices", "bank_transactions", "credit_notes"]:
-            #Search and populate ContactID
-            client = self.get_client()
-            contact_detail = None
-            # Do bills need this check to?
-            if "customerEmail" in record:
-                contact_detail = self.get_contact_from_cache(email=record["customerEmail"])
-
-                if contact_detail is None:
-                    contact_detail = client.filter(
-                        "Contacts",
-                        where='EmailAddress=="{}"'.format(record["customerEmail"]),
-                    )
-                    if contact_detail:
-                        self.save_contact_to_cache(contact_detail[0])
-                        contact_detail = contact_detail[0]
-
-                if contact_detail:
-                    payload["Contact"]["ContactID"] = contact_detail["ContactID"]
-                else:
-                    LOGGER.warning(
-                        f"Warning: Contact with email: {record['customerEmail']} not found."
-                    )
-
-            # Look for customer using default object only if Email lookup failed
-            if "Contact" in payload and contact_detail is None:
-                if "ContactID" not in payload["Contact"]:
-                    # invoices = client.filter("Invoices",IDs='INV-ID')
-                    contact_detail = self.get_contact_from_cache(name=payload["Contact"]["Name"])
-
-                    if contact_detail is None:
-                        contact_detail = client.filter(
-                            "Contacts",
-                            where='Name=="{}"'.format(payload["Contact"]["Name"]),
-                        )
-                        if contact_detail:
-                            self.save_contact_to_cache(contact_detail[0])
-                            contact_detail = contact_detail[0]
-
-                    if contact_detail:
-                        payload["Contact"]["ContactID"] = contact_detail["ContactID"]
-                    else:
-                        LOGGER.warning(
-                            f"Warning: Contact {payload['Contact']['Name']} not found. Skipping."
-                        )
-                        payload.update({"contact_not_found": True})
-                        return payload
-            payload["LineItems"] = self.prepare_invoice_lineitems(payload)
-            if "Contact" not in payload:
-                payload.update({"contact_not_found": True})        
-            elif "ContactID" not in payload['Contact']:
-                payload.update({"contact_not_found": True})
-
+            payload = self._resolve_invoice_contact(record, payload)
         if stream_name == "credit_notes":
-            for i, item in enumerate(payload["LineItems"]):
-                account_code = self.get_account_code(item["AccountCode"])
-                if account_code:
-                    payload["LineItems"][i]["AccountCode"] = account_code
-
-            if payload.get("Date"):
-                payload["Date"] = payload["Date"].split("T")[0]
-
-            payload["LineAmountTypes"] = "Exclusive"
-            payload["Type"] = "ACCPAYCREDIT" if record.get("type") == "AP" else "ACCRECCREDIT"
+            payload = self._finalize_credit_notes_payload(record, payload)
 
         return payload
+
+    def _resolve_line_item_product(self, lineItem, idx, invoice_number, payload):
+        itemName = None
+        item_lookup_value = None
+        lookup_key = None
+        if lineItem.get("ItemCode"):
+            itemName = lineItem.get("ItemCode")
+            item_lookup_value = itemName
+            lookup_key = "Code"
+        elif lineItem.get("ItemName"):
+            itemName = lineItem.get("ItemName")
+            item_lookup_value = itemName
+            lookup_key = "Name"
+        if not itemName:
+            return
+        item = self.get_item(itemName, lookup_key)
+        lineItem.pop("ItemName", None)
+        if item:
+            lineItem["Item"] = {
+                "ItemID": item["ItemID"],
+                "Name": item["Name"],
+                "Code": item["Code"],
+            }
+            lineItem["ItemCode"] = item["Code"]
+        else:
+            payload.update({
+                "error": (
+                    f"Invoice {invoice_number}: Line item {idx + 1}: "
+                    f"Item '{item_lookup_value}' (lookup by {lookup_key}) not found in Xero. "
+                )
+            })
+
+    def _resolve_line_item_tracking(self, lineItem):
+        tracking_items = []
+        client = self.get_client()
+        if "classId" not in lineItem:
+            tracking_detail = None
+            if "className" in lineItem:
+                tracking_detail = client.filter(
+                    "TrackingCategories",
+                    where='Name=="{}"'.format(lineItem["className"]),
+                )
+            if tracking_detail:
+                tracking_detail = tracking_detail[0]
+                del tracking_detail["Status"]
+                del tracking_detail["Options"]
+                tracking_items.append(tracking_detail)
+        elif "className" in lineItem:
+            tracking_items.append(
+                {
+                    "TrackingCategoryID": lineItem.get("classId"),
+                    "Name": lineItem.get("className"),
+                }
+            )
+        if tracking_items:
+            lineItem["Tracking"] = tracking_items
+        lineItem.pop("classId", None)
+        lineItem.pop("className", None)
+
+    def _validate_line_item(self, lineItem, idx, invoice_number, payload):
+        original_account_code = lineItem.get("AccountCode")
+        if "AccountCode" in lineItem and isinstance(lineItem["AccountCode"], str):
+            lineItem["AccountCode"] = self.get_account_code(lineItem["AccountCode"])
+
+        has_account = lineItem.get("AccountCode") is not None
+        has_item = lineItem.get("Item") is not None
+
+        if original_account_code and not has_account:
+            payload.update({
+                "error": (
+                    f"Invoice {invoice_number}: Line item {idx + 1}: "
+                    f"Could not find account '{original_account_code}' in Xero. "
+                )
+            })
+        if not has_item and not has_account:
+            payload.update({
+                "error": (
+                    f"Invoice {invoice_number}: Line item {idx + 1} "
+                    "has no valid item or account. "
+                )
+            })
 
     def prepare_invoice_lineitems(self, payload):
         invoice_number = payload.get("InvoiceNumber") or payload.get("creditNoteNumber")
         lineItems = payload["LineItems"]
         items = []
-        allItems = self.get_all_items()
         self.tax_list = None
         taxes = self.get_tax_list()
         for idx, lineItem in enumerate(lineItems):
-            itemName = None
-            item_lookup_value = None
-            if lineItem.get("ItemCode"):
-                itemName = lineItem.get("ItemCode")
-                item_lookup_value = itemName
-                lookup_key = "Code"
-            elif lineItem.get("ItemName"):
-                itemName = lineItem.get("ItemName")
-                item_lookup_value = itemName
-                lookup_key = "Name"
-            if itemName:
-                item = self.get_item(itemName, lookup_key)
-                lineItem.pop("ItemName", None)
-                if item:
-                    lineItem["Item"] = {
-                        "ItemID": item["ItemID"],
-                        "Name": item["Name"],
-                        "Code": item["Code"],
-                    }
-                    lineItem["ItemCode"] = item["Code"]
-                else:
-                    # Item was specified but not found
-                    payload.update({"error": f"Invoice {invoice_number}: Line item {idx + 1}: Item '{item_lookup_value}' (lookup by {lookup_key}) not found in Xero. "})
+            self._resolve_line_item_product(lineItem, idx, invoice_number, payload)
             if lineItem.get("Description") is None:
                 lineItem["Description"] = "Created via API"
             tax_type = lineItem.get("TaxType")
-            if taxes is not None:
-                if tax_type in taxes.keys() and tax_type is not None:
-                    lineItem["TaxType"] = taxes[tax_type]
-            
-            original_account_code = lineItem.get("AccountCode")
-            if "AccountCode" in lineItem:
-                # check if we need to lookup account code
-                if isinstance(lineItem["AccountCode"], str):
-                    lineItem["AccountCode"] = self.get_account_code(
-                        lineItem["AccountCode"]
-                    )
-
-            has_account = lineItem.get("AccountCode") is not None
-            has_item = lineItem.get("Item") is not None
-            
-            if original_account_code and not has_account:
-                payload.update({"error": f"Invoice {invoice_number}: Line item {idx + 1}: Could not find account '{original_account_code}' in Xero. "})
-
-            if not has_item and not has_account:
-                payload.update({"error": f"Invoice {invoice_number}: Line item {idx + 1} has no valid item or account. "})
-
-            tracking_items = []
-            client = self.get_client()
-            if "classId" not in lineItem:
-                tracking_detail = None
-                if "className" in lineItem:
-                    tracking_detail = client.filter(
-                        "TrackingCategories",
-                        where='Name=="{}"'.format(lineItem["className"]),
-                    )
-                if tracking_detail:
-                    tracking_detail = tracking_detail[0]
-                    del tracking_detail["Status"]
-                    del tracking_detail["Options"]
-                    tracking_items.append(tracking_detail)
-            else:
-                if "classId" in lineItem and "className" in lineItem:
-                    tracking_items.append(
-                        {
-                            "TrackingCategoryID": lineItem.get("classId"),
-                            "Name": lineItem.get("className"),
-                        }
-                    )
-
-            if len(tracking_items) > 0:
-                lineItem["Tracking"] = tracking_items
-            #Delete tracking keys from base item    
-            if "classId" in lineItem:
-                del lineItem["classId"]
-            if "className" in lineItem:
-                del lineItem["className"]
+            if taxes is not None and tax_type in taxes:
+                lineItem["TaxType"] = taxes[tax_type]
+            self._validate_line_item(lineItem, idx, invoice_number, payload)
+            self._resolve_line_item_tracking(lineItem)
             items.append(lineItem)
         return items
 
@@ -475,7 +493,6 @@ class CustomerSink(XeroSink, HotglueBatchSink):
         return payload
 
     def handle_batch_response(self, response) -> dict:
-        state = {}
         results = []
         try:
             response = response.json()
@@ -569,7 +586,7 @@ class TaxRatesSink(XeroRecordSink):
     def preprocess_record(self, record: dict, context: dict) -> dict:
         taxes = self.get_tax_list()
         entry = self.process_taxrates(record)
-        if not entry["Name"] in taxes.keys():
+        if entry["Name"] not in taxes.keys():
             context["records"].append(entry)
         return entry
 
@@ -706,15 +723,6 @@ class BillsSink(XeroRecordSink):
             state_update["is_updated"] = True
         
         return id, success, state_update
-        
-
-class JournalEntriesSink(XeroRecordSink):
-    endpoint = "Manual_Journals"
-    name = "JournalEntries"
-
-    def preprocess_record(self, record: dict, context: dict) -> dict:
-        entry = self.process_journalentries(record)
-        return entry
 
 
 class CreditNotesSink(XeroRecordSink):
@@ -852,7 +860,7 @@ class BillPaymentsSink(XeroRecordSink):
             account_code = record.get("accountNumber")
 
             if not account_code and not account_name and not account_id:
-                raise Exception(f"No account code or account name or account id was provided.")
+                raise Exception("No account code or account name or account id was provided.")
             
             if account_id:
                 payload["Account"]["AccountID"] = account_id

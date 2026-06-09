@@ -1,6 +1,5 @@
 """Xero target class."""
 
-from typing import List, Optional, Union
 
 from singer_sdk import typing as th
 from target_hotglue.target import TargetHotglue

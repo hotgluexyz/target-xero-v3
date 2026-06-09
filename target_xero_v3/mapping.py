@@ -1,6 +1,5 @@
 import json
 import os
-from cgitb import lookup
 from datetime import datetime
 
 __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
@@ -103,89 +102,83 @@ class UnifiedMapping:
                 payload[type] = item
         return payload
 
-    # Modify this function and use recursion to support nested mapping
+    def _map_xero_list_key(self, record, lookup_key, field_mapping, payload, endpoint):
+        list_handlers = {
+            "addresses": lambda: self.map_xero_list(
+                record.get(lookup_key, {}), field_mapping, payload
+            ),
+            "phoneNumbers": lambda: self.map_xero_list(
+                record.get(lookup_key, {}), field_mapping, payload, "phones"
+            ),
+            "lineItems": lambda: self.map_xero_list(
+                record.get(lookup_key, []), field_mapping, payload, type="LineItems"
+            ),
+            "address": lambda: self.map_xero_list(
+                record.get(lookup_key, []), field_mapping, payload, "Addresses"
+            ),
+            "billItem": lambda: self.map_xero_list(
+                record.get(lookup_key, []), field_mapping, payload, "PurchaseDetails"
+            ),
+            "invoiceItem": lambda: self.map_xero_list(
+                record.get(lookup_key, []), field_mapping, payload, "SalesDetails"
+            ),
+        }
+        if lookup_key in list_handlers:
+            return list_handlers[lookup_key]()
+        if lookup_key == "contact":
+            row = (
+                {"vendorName": record.get("vendorName")}
+                if endpoint == "bills"
+                else {"customerName": record.get("customerName")}
+            )
+            if "customerId" in record:
+                row.update({"customerId": record["customerId"]})
+            return self.map_xero_list(row, field_mapping, payload, "Contact")
+        if lookup_key == "customerRef":
+            return self.map_xero_dict(
+                record.get(lookup_key, {}), field_mapping, payload, "Contact"
+            )
+        return payload
+
+    def _map_lookup_key(self, record, lookup_key, mapping, payload, endpoint, target):
+        if target == "xero" and lookup_key in {
+            "addresses",
+            "phoneNumbers",
+            "lineItems",
+            "address",
+            "billItem",
+            "invoiceItem",
+            "contact",
+            "customerRef",
+        }:
+            return self._map_xero_list_key(
+                record, lookup_key, mapping[lookup_key], payload, endpoint
+            )
+        if lookup_key == "custom_fields":
+            return self.map_custom_fields(payload, mapping[lookup_key])
+        val = record.get(lookup_key, "")
+        if isinstance(val, datetime):
+            val = val.strftime("%Y-%m-%d")
+        if val:
+            payload[mapping[lookup_key]] = val
+        return payload
+
     def prepare_payload(self, record, endpoint="contact", target="xero"):
         mapping = self.read_json_file(f"mapping_{target}.json")
         ignore = mapping["ignore"]
         mapping = mapping[endpoint]
         payload = {}
-        payload_return = {}
-        lookup_keys = mapping.keys()
-        for lookup_key in lookup_keys:
-            if lookup_key == "addresses" and target == "xero":
-                payload = self.map_xero_list(
-                    record.get(lookup_key, {}), mapping[lookup_key], payload
-                )
-            elif lookup_key == "phoneNumbers" and target == "xero":
-                payload = self.map_xero_list(
-                    record.get(lookup_key, {}), mapping[lookup_key], payload, "phones"
-                )
-            elif lookup_key == "lineItems" and target == "xero":
-                payload = self.map_xero_list(
-                    record.get(lookup_key, []),
-                    mapping[lookup_key],
-                    payload,
-                    type="LineItems",
-                )
-                #@TODO look into why this change was here.
-                # if endpoint == "credit_notes":
-                #     payload["LineItems"] = [payload["LineItems"]]
-            elif lookup_key == "address" and target == "xero":
-                payload = self.map_xero_list(
-                    record.get(lookup_key, []),
-                    mapping[lookup_key],
-                    payload,
-                    "Addresses",
-                )
-            elif lookup_key == "billItem" and target == "xero":
-                payload = self.map_xero_list(
-                    record.get(lookup_key, []),
-                    mapping[lookup_key],
-                    payload,
-                    "PurchaseDetails",
-                )
-            elif lookup_key == "invoiceItem" and target == "xero":
-                payload = self.map_xero_list(
-                    record.get(lookup_key, []),
-                    mapping[lookup_key],
-                    payload,
-                    "SalesDetails",
-                )
-            elif lookup_key == "contact" and target == "xero":
-                if endpoint == "bills":
-                    row = {"vendorName": record.get("vendorName")}
-                else:
-                    row = {"customerName": record.get("customerName")}
+        for lookup_key in mapping.keys():
+            payload = self._map_lookup_key(
+                record, lookup_key, mapping, payload, endpoint, target
+            )
 
-                if "customerId" in record:
-                    row.update({"customerId": record["customerId"]})
-                payload = self.map_xero_list(
-                    row, mapping[lookup_key], payload, "Contact"
-                )
-            elif lookup_key == "customerRef" and target == "xero":
-                payload = self.map_xero_dict(
-                    record.get(lookup_key, {}), mapping[lookup_key], payload, "Contact"
-                )
-
-            elif lookup_key == "custom_fields":
-                # handle custom fields
-                payload = self.map_custom_fields(payload, mapping[lookup_key])
-            else:
-                val = record.get(lookup_key, "")
-                if isinstance(val, datetime):
-                    val = val.strftime("%Y-%m-%d")
-                if val:
-                    payload[mapping[lookup_key]] = val
-
-        # Need name for Opportunity
         if endpoint == "oppurtunity" or endpoint == "account":
             ignore.remove("Name")
 
-        # inject special fields of shopify product before returning payload
         if target == "shopify" and endpoint == "products":
             payload = self.inject_sopify_product_fields(record, payload, mapping)
 
-        # filter ignored keys
         payload = self.filter_ignore_keys(payload)
         return payload
 
