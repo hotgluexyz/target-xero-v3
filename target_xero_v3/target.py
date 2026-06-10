@@ -1,60 +1,20 @@
 """Xero target class."""
 
+from hotglue_singer_sdk import typing as th
+from hotglue_singer_sdk.helpers.capabilities import AlertingLevel
+from hotglue_singer_sdk.target_sdk.target import TargetHotglue
 
-from singer_sdk import typing as th
-from target_hotglue.target import TargetHotglue
-
-
-from target_xero_v3.sinks import (
-    CustomerSink,
-    TaxRatesSink,
-    ItemsSink,
-    InvoicesSink,
-    BillsSink,
-    JournalEntriesSink,
-    CreditNotesSink,
-    QuotesSink,
-    VendorsSink,
-    BankTransactionSink,
-    BillPaymentsSink,
-    InvoicePaymentsSink
-)
+from target_xero_v3.client import XeroClient
+from target_xero_v3.sinks.customer_sink import CustomerSink
+from target_xero_v3.sinks.vendor_sink import VendorSink
 
 
 class TargetXero(TargetHotglue):
     """Sample target for Xero."""
 
-    SINK_TYPES = [
-        CustomerSink,
-        VendorsSink,
-        TaxRatesSink,
-        ItemsSink,
-        InvoicesSink,
-        BillsSink,
-        JournalEntriesSink,
-        CreditNotesSink,
-        QuotesSink,
-        BankTransactionSink,
-        BillPaymentsSink,
-        InvoicePaymentsSink
-    ]
     name = "target-xero-v3"
-
-    def __init__(
-        self,
-        config=None,
-        parse_env_config: bool = False,
-        validate_config: bool = True,
-        state: str = None,
-    ) -> None:
-        self.config_file = config[0]
-        super().__init__(
-            config=config,
-            parse_env_config=parse_env_config,
-            validate_config=validate_config,
-        )
-        # Process one stream at once.
-        self._max_parallelism = 1
+    alerting_level = AlertingLevel.ERROR
+    MAX_PARALLELISM = 1
 
     config_jsonschema = th.PropertiesList(
         th.Property("client_id", th.StringType, required=True),
@@ -63,6 +23,35 @@ class TargetXero(TargetHotglue):
         th.Property("access_token", th.StringType, required=True),
         th.Property("tenant_id", th.StringType, required=True),
     ).to_dict()
+
+    SINK_TYPES = [
+        CustomerSink,
+        VendorSink,
+    ]
+
+    def __init__(
+        self,
+        config=None,
+        parse_env_config: bool = False,
+        validate_config: bool = True,
+        state: str = None,
+    ) -> None:
+        super().__init__(
+            config=config,
+            parse_env_config=parse_env_config,
+            validate_config=validate_config,
+            state=state,
+        )
+        self.config_file = self._config_file_path
+        self._max_parallelism = 1
+        self.xero_client = XeroClient(dict(self.config), self.config_file)
+        self.reference_data = self.get_reference_data()
+
+    def get_reference_data(self):
+        self.logger.info("Getting reference data...")
+        reference_data = {}
+        self.logger.info("Done getting reference data.")
+        return reference_data
 
 
 if __name__ == "__main__":

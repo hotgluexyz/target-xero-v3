@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "target-xero-v3"
 version = "0.0.4"
-description = "`target-xero-v3` is a Singer target for Xero, built with the Meltano SDK for Singer Targets."
+description = "`target-xero-v3` is a Singer target for Xero, built with the Hotglue Singer SDK."
 authors = ["Adil Ahmed"]
 keywords = [
     "ELT",
@@ -11,9 +11,8 @@ license = "Apache 2.0"
 
 [tool.poetry.dependencies]
 python = "<3.11,>=3.7.1"
-requests = "^2.25.1"
-singer-sdk = "^0.9.0"
-target-hotglue = "^0.0.2"
+hotglue-singer-sdk = "~=1.0.34"
+hotglue-models-accounting = { git = "https://gitlab.com/hotglue/hotglue-models-accounting.git", rev = "v2" }
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2.5"
@@ -37,3 +36,4 @@ build-backend = "poetry.core.masonry.api"
 [tool.poetry.scripts]
 # CLI declaration
 target-xero-v3 = 'target_xero_v3.target:TargetXero.cli'
+target-xero = 'target_xero_v3.target:TargetXero.cli'

@@ -307,8 +307,7 @@ class XeroClient:
 
         # headers = self.authorization(headers)
 
-        # Validating the authorization of the provided configuration
-        response = self._http_request("GET", "Contacts", headers=headers)
+        response = self.session.get(join(BASE_URL, "Contacts"), headers=headers)
 
         if response.status_code != 200:
             return False
