@@ -9,7 +9,7 @@ from target_xero_v3.mappers.vendor_schema_mapper import VendorSchemaMapper
 class VendorSink(XeroBatchSink):
     name = "Vendors"
     unified_schema = Vendor
-    auto_validate_unified_schema = False
+    auto_validate_unified_schema = True
 
     def get_batch_reference_data(self, records: List) -> Dict:
         existing_contacts = []

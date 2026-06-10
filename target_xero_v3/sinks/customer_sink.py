@@ -9,7 +9,7 @@ from target_xero_v3.mappers.customer_schema_mapper import CustomerSchemaMapper
 class CustomerSink(XeroBatchSink):
     name = "Customers"
     unified_schema = Customer
-    auto_validate_unified_schema = False
+    auto_validate_unified_schema = True
 
     def get_batch_reference_data(self, records: List) -> Dict:
         existing_contacts = []
