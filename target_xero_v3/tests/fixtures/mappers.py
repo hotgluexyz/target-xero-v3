@@ -4,7 +4,6 @@ CUSTOMER_RECORD = {
     "externalId": "FAKE-CUSTOMER-EXT-001",
     "customerNumber": "FAKE-CUST-NUM-001",
     "companyName": "Fake Customer Co (Sample)",
-    "website": "https://example.invalid/fake-customer",
     "email": "fake.customer@example.invalid",
     "phoneNumbers": [
         {"type": "mobile", "phoneNumber": "+15555550100"},
@@ -41,7 +40,6 @@ VENDOR_RECORD = {
     "vendorNumber": "FAKE-VEND-NUM-001",
     "vendorName": "Fake Vendor LLC (Sample)",
     "email": "fake.vendor@example.invalid",
-    "website": "https://example.invalid/fake-vendor",
     "subsidiaryId": "00000000-0000-4000-8000-000000000002",
     "phoneNumbers": [{"type": "unknown", "phoneNumber": "+15555550200"}],
     "addresses": [

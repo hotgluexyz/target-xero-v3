@@ -16,7 +16,7 @@ class CustomerSink(XeroBatchSink):
         contact_ids = {record["id"] for record in records if record.get("id")}
         contact_names = set()
         for record in records:
-            for field in ("companyName", "customerName", "fullName", "contactName"):
+            for field in ("companyName", "fullName"):
                 if record.get(field):
                     contact_names.add(record[field])
 

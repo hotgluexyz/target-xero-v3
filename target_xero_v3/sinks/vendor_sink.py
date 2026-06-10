@@ -14,7 +14,11 @@ class VendorSink(XeroBatchSink):
     def get_batch_reference_data(self, records: List) -> Dict:
         existing_contacts = []
         contact_ids = {record["id"] for record in records if record.get("id")}
-        vendor_names = {record["vendorName"] for record in records if record.get("vendorName")}
+        vendor_names = set()
+        for record in records:
+            for field in ("vendorName", "fullName"):
+                if record.get(field):
+                    vendor_names.add(record[field])
 
         for contact_id in contact_ids:
             matches = self.xero_client.filter(

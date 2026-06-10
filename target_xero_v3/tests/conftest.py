@@ -20,17 +20,22 @@ def vendor_record():
 
 @pytest.fixture
 def empty_reference_data():
-    return {"Customers": [], "Vendors": []}
+    return {
+        "Customers": [],
+        "Vendors": [],
+        "Currencies": [{"Code": "USD", "Description": "United States Dollar"}],
+        "Organisation": [{"BaseCurrency": "USD"}],
+    }
 
 
 @pytest.fixture
-def customer_reference_data(existing_customer_reference):
-    return {"Customers": [existing_customer_reference], "Vendors": []}
+def customer_reference_data(existing_customer_reference, empty_reference_data):
+    return {**empty_reference_data, "Customers": [existing_customer_reference]}
 
 
 @pytest.fixture
-def vendor_reference_data(existing_vendor_reference):
-    return {"Customers": [], "Vendors": [existing_vendor_reference]}
+def vendor_reference_data(existing_vendor_reference, empty_reference_data):
+    return {**empty_reference_data, "Vendors": [existing_vendor_reference]}
 
 
 @pytest.fixture

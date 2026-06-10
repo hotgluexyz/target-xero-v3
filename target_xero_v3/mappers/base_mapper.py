@@ -17,6 +17,7 @@ ADDRESS_TYPE_MAP = {
 PHONE_TYPE_MAP = {
     "primary": "DEFAULT",
     "mobile": "MOBILE",
+    "ddi": "DDI",
     "fax": "FAX",
     "unknown": "DEFAULT",
 }
@@ -74,14 +75,28 @@ class BaseMapper:
             return {"EmailAddress": email}
         return {}
 
-    def _map_website(self):
-        if website := self.record.get("website"):
-            return {"Website": website}
-        return {}
+    def _lookup_currency_code(self, currency_name):
+        normalized_name = currency_name.casefold()
+        for currency in self.reference_data.get("Currencies", []):
+            description = currency.get("Description")
+            if description and description.casefold() == normalized_name:
+                return currency.get("Code")
+        return None
+
+    def _get_base_currency(self):
+        organisations = self.reference_data.get("Organisation", [])
+        if organisations:
+            return organisations[0].get("BaseCurrency")
+        return None
 
     def _map_currency(self):
         if currency := self.record.get("currency"):
             return {"DefaultCurrency": currency}
+        if currency_name := self.record.get("currencyName"):
+            if code := self._lookup_currency_code(currency_name):
+                return {"DefaultCurrency": code}
+        if base_currency := self._get_base_currency():
+            return {"DefaultCurrency": base_currency}
         return {}
 
     def _map_phones(self):

@@ -13,9 +13,11 @@ class TestCustomerSchemaMapper:
         ).to_xero()
 
         assert payload["Name"] == "Fake Customer Co (Sample)"
+        assert payload["AccountNumber"] == "FAKE-CUST-NUM-001"
+        assert "ContactNumber" not in payload
         assert payload["EmailAddress"] == "fake.customer@example.invalid"
-        assert payload["Website"] == "https://example.invalid/fake-customer"
         assert payload["DefaultCurrency"] == "USD"
+        assert "Website" not in payload
         assert payload["IsCustomer"] is True
         assert payload["IsSupplier"] is False
         assert "ContactID" not in payload
@@ -68,20 +70,11 @@ class TestCustomerSchemaMapper:
                 record, "Customers", reference_data=empty_reference_data
             ).to_xero()
 
-    def test_maps_email_from_email_address_field(self, empty_reference_data):
+    def test_maps_full_name_for_individual_customer(self, empty_reference_data):
         record = {
-            "companyName": "Fake Alt Customer (Sample)",
-            "emailAddress": "fake.alt.customer@example.invalid",
-        }
-        payload = CustomerSchemaMapper(
-            record, "Customers", reference_data=empty_reference_data
-        ).to_xero()
-
-        assert payload["EmailAddress"] == "fake.alt.customer@example.invalid"
-
-    def test_maps_contact_name_from_contact_name_splits_first_and_last(self, empty_reference_data):
-        record = {
-            "contactName": "Fakey McSample",
+            "fullName": "Fakey McSample",
+            "firstName": "Fakey",
+            "lastName": "McSample",
             "email": "fakey.mcsample@example.invalid",
         }
         payload = CustomerSchemaMapper(
@@ -91,3 +84,71 @@ class TestCustomerSchemaMapper:
         assert payload["Name"] == "Fakey McSample"
         assert payload["FirstName"] == "Fakey"
         assert payload["LastName"] == "McSample"
+
+    def test_maps_name_from_first_and_last_when_company_and_full_name_absent(self, empty_reference_data):
+        record = {
+            "firstName": "Fakey",
+            "lastName": "McSample",
+            "email": "fakey.mcsample@example.invalid",
+        }
+        payload = CustomerSchemaMapper(
+            record, "Customers", reference_data=empty_reference_data
+        ).to_xero()
+
+        assert payload["Name"] == "Fakey McSample"
+
+    def test_maps_tax_code(self, empty_reference_data):
+        record = {"companyName": "Fake Tax Customer", "taxCode": "OUTPUT"}
+        payload = CustomerSchemaMapper(
+            record, "Customers", reference_data=empty_reference_data
+        ).to_xero()
+
+        assert payload["AccountsReceivableTaxType"] == "OUTPUT"
+
+    def test_maps_currency_from_currency_name(self, empty_reference_data):
+        record = {
+            "companyName": "Fake Currency Name Customer",
+            "currencyName": "United States Dollar",
+        }
+        payload = CustomerSchemaMapper(
+            record, "Customers", reference_data=empty_reference_data
+        ).to_xero()
+
+        assert payload["DefaultCurrency"] == "USD"
+
+    def test_maps_currency_from_base_currency_when_currency_fields_absent(
+        self, empty_reference_data
+    ):
+        record = {"companyName": "Fake Base Currency Customer"}
+        payload = CustomerSchemaMapper(
+            record, "Customers", reference_data=empty_reference_data
+        ).to_xero()
+
+        assert payload["DefaultCurrency"] == "USD"
+
+    def test_prefers_currency_over_currency_name(self, empty_reference_data):
+        record = {
+            "companyName": "Fake Currency Priority Customer",
+            "currency": "EUR",
+            "currencyName": "United States Dollar",
+        }
+        payload = CustomerSchemaMapper(
+            record, "Customers", reference_data=empty_reference_data
+        ).to_xero()
+
+        assert payload["DefaultCurrency"] == "EUR"
+
+    def test_maps_is_active_to_contact_status(self, empty_reference_data):
+        active = CustomerSchemaMapper(
+            {"companyName": "Active Fake Co", "isActive": True},
+            "Customers",
+            reference_data=empty_reference_data,
+        ).to_xero()
+        archived = CustomerSchemaMapper(
+            {"companyName": "Archived Fake Co", "isActive": False},
+            "Customers",
+            reference_data=empty_reference_data,
+        ).to_xero()
+
+        assert active["ContactStatus"] == "ACTIVE"
+        assert archived["ContactStatus"] == "ARCHIVED"

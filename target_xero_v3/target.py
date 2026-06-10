@@ -49,7 +49,10 @@ class TargetXero(TargetHotglue):
 
     def get_reference_data(self):
         self.logger.info("Getting reference data...")
-        reference_data = {}
+        reference_data = {
+            "Currencies": self.xero_client.filter("Currencies") or [],
+            "Organisation": self.xero_client.filter("Organisation") or [],
+        }
         self.logger.info("Done getting reference data.")
         return reference_data
 

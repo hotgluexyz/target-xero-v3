@@ -356,8 +356,12 @@ class XeroClient:
             )
             if xero_resource_name in response_meta:
                 response_body = response_meta.pop(xero_resource_name)
+            elif f"{xero_resource_name}s" in response_meta:
+                response_body = response_meta.pop(f"{xero_resource_name}s")
             elif tap_stream_id in response_meta:
                 response_body = response_meta.pop(tap_stream_id)
+            else:
+                return None
             return response_body
 
     def push(self, tap_stream_id, payload):

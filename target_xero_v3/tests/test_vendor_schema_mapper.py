@@ -13,12 +13,14 @@ class TestVendorSchemaMapper:
         ).to_xero()
 
         assert payload["Name"] == "Fake Vendor LLC (Sample)"
+        assert payload["AccountNumber"] == "FAKE-VEND-NUM-001"
         assert payload["EmailAddress"] == "fake.vendor@example.invalid"
-        assert payload["Website"] == "https://example.invalid/fake-vendor"
         assert payload["DefaultCurrency"] == "USD"
+        assert "Website" not in payload
         assert payload["IsCustomer"] is False
         assert payload["IsSupplier"] is True
         assert "ContactID" not in payload
+        assert "ContactNumber" not in payload
 
     def test_maps_vendor_phone_numbers(self, vendor_record, empty_reference_data):
         payload = VendorSchemaMapper(
@@ -70,13 +72,46 @@ class TestVendorSchemaMapper:
                 record, "Vendors", reference_data=empty_reference_data
             ).to_xero()
 
-    def test_uses_vendor_name_when_company_name_absent(self, empty_reference_data):
+    def test_maps_full_name_for_individual_vendor(self, empty_reference_data):
         record = {
-            "vendorName": "Fake Solo Vendor (Sample)",
-            "email": "fake.solo.vendor@example.invalid",
+            "fullName": "Fakey McVendor",
+            "firstName": "Fakey",
+            "lastName": "McVendor",
+            "email": "fakey.mcvendor@example.invalid",
         }
         payload = VendorSchemaMapper(
             record, "Vendors", reference_data=empty_reference_data
         ).to_xero()
 
-        assert payload["Name"] == "Fake Solo Vendor (Sample)"
+        assert payload["Name"] == "Fakey McVendor"
+        assert payload["FirstName"] == "Fakey"
+        assert payload["LastName"] == "McVendor"
+
+    def test_maps_name_from_first_and_last_when_vendor_name_and_full_name_absent(
+        self, empty_reference_data
+    ):
+        record = {
+            "firstName": "Fakey",
+            "lastName": "McVendor",
+            "email": "fakey.mcvendor@example.invalid",
+        }
+        payload = VendorSchemaMapper(
+            record, "Vendors", reference_data=empty_reference_data
+        ).to_xero()
+
+        assert payload["Name"] == "Fakey McVendor"
+
+    def test_maps_is_active_to_contact_status(self, empty_reference_data):
+        active = VendorSchemaMapper(
+            {"vendorName": "Active Fake Vendor", "isActive": True},
+            "Vendors",
+            reference_data=empty_reference_data,
+        ).to_xero()
+        archived = VendorSchemaMapper(
+            {"vendorName": "Archived Fake Vendor", "isActive": False},
+            "Vendors",
+            reference_data=empty_reference_data,
+        ).to_xero()
+
+        assert active["ContactStatus"] == "ACTIVE"
+        assert archived["ContactStatus"] == "ARCHIVED"
