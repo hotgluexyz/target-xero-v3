@@ -2,7 +2,7 @@
 
 `target-xero-v3` is a Singer target for Xero.
 
-Build with the [Meltano Target SDK](https://sdk.meltano.com).
+Built with the [Hotglue Singer SDK](https://github.com/hotgluexyz/HotglueSingerSDK) for Singer Taps.
 
 ## Installation
 
