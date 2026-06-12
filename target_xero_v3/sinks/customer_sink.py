@@ -10,6 +10,9 @@ class CustomerSink(XeroBatchSink):
     name = "Customers"
     unified_schema = Customer
     auto_validate_unified_schema = True
+    endpoint = "Contacts"
+    record_type = "Contact"
+    id_field = "ContactID"
 
     def get_batch_reference_data(self, records: List) -> Dict:
         existing_contacts = []
@@ -43,7 +46,7 @@ class CustomerSink(XeroBatchSink):
         ).to_xero()
         if record.get("externalId"):
             mapped_record["externalId"] = record["externalId"]
-        operation_type = "update" if "ContactID" in mapped_record else "create"
+        operation_type = "update" if self.id_field in mapped_record else "create"
         return {
             "bId": str(index),
             "operation": operation_type,

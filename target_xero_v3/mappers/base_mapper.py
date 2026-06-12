@@ -1,14 +1,6 @@
 from typing import Dict, List
 
 
-class InvalidInputError(Exception):
-    pass
-
-
-class RecordNotFound(InvalidInputError):
-    pass
-
-
 ADDRESS_TYPE_MAP = {
     "billing": "POBOX",
     "shipping": "STREET",
@@ -48,10 +40,6 @@ class BaseMapper:
                 ),
                 None,
             )
-            if mapping["required_if_present"] and found_record is None:
-                raise RecordNotFound(
-                    f"Record {mapping['record_field']}={record_id} not found in Xero. Skipping it"
-                )
             if found_record:
                 return found_record
         return None
@@ -83,6 +71,12 @@ class BaseMapper:
                 return currency.get("Code")
         return None
 
+    def _lookup_currency_by_code(self, currency_code):
+        for currency in self.reference_data.get("Currencies", []):
+            if str(currency.get("Code")) == str(currency_code):
+                return currency.get("Code")
+        return None
+
     def _get_base_currency(self):
         organisations = self.reference_data.get("Organisation", [])
         if organisations:
@@ -92,6 +86,9 @@ class BaseMapper:
     def _map_currency(self):
         if currency := self.record.get("currency"):
             return {"DefaultCurrency": currency}
+        if currency_id := self.record.get("currencyId"):
+            if code := self._lookup_currency_by_code(currency_id):
+                return {"DefaultCurrency": code}
         if currency_name := self.record.get("currencyName"):
             if code := self._lookup_currency_code(currency_name):
                 return {"DefaultCurrency": code}
@@ -134,22 +131,20 @@ class BaseMapper:
             )
         return {"Addresses": addresses} if addresses else {}
 
-    def _map_contact_name(self):
-        name = (
-            self.record.get("companyName")
-            or self.record.get("customerName")
-            or self.record.get("fullName")
-            or self.record.get("vendorName")
-            or self.record.get("contactName")
+    def _map_name(self, *name_fields):
+        name = next(
+            (self.record[field] for field in name_fields if self.record.get(field)),
+            None,
         )
+        if not name:
+            parts = [self.record.get("firstName"), self.record.get("lastName")]
+            name = " ".join(part for part in parts if part)
         if name:
             return {"Name": name}
         return {}
 
-    def _map_person_name(self, payload):
-        if self.record.get("contactName") and not payload.get("FirstName"):
-            contact_name = self.record.get("contactName").split()
-            last_name = contact_name[1] if len(contact_name) == 2 else None
-            payload["FirstName"] = contact_name[0]
-            if last_name:
-                payload["LastName"] = last_name
+    def _map_contact_status(self):
+        is_active = self.record.get("isActive")
+        if is_active is None:
+            return {}
+        return {"ContactStatus": "ACTIVE" if is_active else "ARCHIVED"}

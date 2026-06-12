@@ -10,7 +10,7 @@ from target_xero_v3.sinks.vendor_sink import VendorSink
 
 
 class TargetXero(TargetHotglue):
-    """Sample target for Xero."""
+    """Xero target class."""
 
     name = "target-xero-v3"
     alerting_level = AlertingLevel.ERROR
@@ -43,18 +43,18 @@ class TargetXero(TargetHotglue):
             state=state,
         )
         self.config_file = self._config_file_path
-        self._max_parallelism = 1
-        self.xero_client = XeroClient(dict(self.config), self.config_file)
+        self.xero_client = self.get_xero_client()
         self.reference_data = self.get_reference_data()
 
+    def get_xero_client(self):
+        return XeroClient(dict(self.config), self.config_file, self.logger)
+
     def get_reference_data(self):
-        self.logger.info("Getting reference data...")
-        reference_data = {
+        self.logger.info("Reading data from API...")
+        return {
             "Currencies": self.xero_client.filter("Currencies") or [],
             "Organisation": self.xero_client.filter("Organisation") or [],
         }
-        self.logger.info("Done getting reference data.")
-        return reference_data
 
 
 if __name__ == "__main__":

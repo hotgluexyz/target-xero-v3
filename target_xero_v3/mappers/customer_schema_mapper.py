@@ -11,38 +11,21 @@ class CustomerSchemaMapper(BaseMapper):
     ]
 
     field_mappings = {
-        "customerNumber": "AccountNumber",
+        "customerNumber": "ContactNumber",
         "firstName": "FirstName",
         "lastName": "LastName",
         "taxCode": "AccountsReceivableTaxType",
     }
 
-    def _map_name(self):
-        name = self.record.get("companyName") or self.record.get("fullName")
-        if not name:
-            parts = [self.record.get("firstName"), self.record.get("lastName")]
-            name = " ".join(part for part in parts if part)
-        if name:
-            return {"Name": name}
-        return {}
-
-    def _map_contact_status(self):
-        is_active = self.record.get("isActive")
-        if is_active is None:
-            return {}
-        return {"ContactStatus": "ACTIVE" if is_active else "ARCHIVED"}
-
     def to_xero(self) -> Dict:
         payload = {
             **self._map_internal_id(),
-            **self._map_name(),
+            **self._map_name("companyName", "fullName"),
             **self._map_email(),
             **self._map_currency(),
             **self._map_phones(),
             **self._map_addresses(),
             **self._map_contact_status(),
-            "IsCustomer": True,
-            "IsSupplier": False,
         }
         self._map_fields(payload)
         return payload

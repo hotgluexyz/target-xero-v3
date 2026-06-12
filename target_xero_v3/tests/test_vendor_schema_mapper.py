@@ -1,8 +1,5 @@
 """Unit tests for VendorSchemaMapper."""
 
-import pytest
-
-from target_xero_v3.mappers.base_mapper import RecordNotFound
 from target_xero_v3.mappers.vendor_schema_mapper import VendorSchemaMapper
 
 
@@ -13,14 +10,11 @@ class TestVendorSchemaMapper:
         ).to_xero()
 
         assert payload["Name"] == "Fake Vendor LLC (Sample)"
-        assert payload["AccountNumber"] == "FAKE-VEND-NUM-001"
+        assert payload["ContactNumber"] == "FAKE-VEND-NUM-001"
         assert payload["EmailAddress"] == "fake.vendor@example.invalid"
         assert payload["DefaultCurrency"] == "USD"
         assert "Website" not in payload
-        assert payload["IsCustomer"] is False
-        assert payload["IsSupplier"] is True
         assert "ContactID" not in payload
-        assert "ContactNumber" not in payload
 
     def test_maps_vendor_phone_numbers(self, vendor_record, empty_reference_data):
         payload = VendorSchemaMapper(
@@ -61,16 +55,17 @@ class TestVendorSchemaMapper:
         assert payload["ContactID"] == "00000000-0000-4000-8000-0000000000v1"
         assert payload["Name"] == "Fake Renamed Vendor (Sample)"
 
-    def test_raises_when_required_id_not_found(self, empty_reference_data):
+    def test_omits_contact_id_when_id_not_in_reference(self, empty_reference_data):
         record = {
             "id": "00000000-0000-4000-8000-000000009998",
             "vendorName": "Fake Missing Vendor (Sample)",
         }
+        payload = VendorSchemaMapper(
+            record, "Vendors", reference_data=empty_reference_data
+        ).to_xero()
 
-        with pytest.raises(RecordNotFound, match="id=00000000-0000-4000-8000-000000009998"):
-            VendorSchemaMapper(
-                record, "Vendors", reference_data=empty_reference_data
-            ).to_xero()
+        assert "ContactID" not in payload
+        assert payload["Name"] == "Fake Missing Vendor (Sample)"
 
     def test_maps_full_name_for_individual_vendor(self, empty_reference_data):
         record = {
@@ -100,6 +95,16 @@ class TestVendorSchemaMapper:
         ).to_xero()
 
         assert payload["Name"] == "Fakey McVendor"
+
+    def test_omits_name_when_vendor_name_missing(self, empty_reference_data):
+        payload = VendorSchemaMapper(
+            {"email": "no.name@example.invalid"},
+            "Vendors",
+            reference_data=empty_reference_data,
+        ).to_xero()
+
+        assert "Name" not in payload
+        assert payload["EmailAddress"] == "no.name@example.invalid"
 
     def test_maps_is_active_to_contact_status(self, empty_reference_data):
         active = VendorSchemaMapper(
