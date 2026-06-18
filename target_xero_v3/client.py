@@ -25,7 +25,7 @@ def get_token_expiration_time(access_token):
     try:
         decoded_token = jwt.decode(access_token, options={"verify_signature": False})
         return datetime.fromtimestamp(decoded_token["exp"], tz=pytz.UTC)
-    except Exception as e:
+    except Exception:
         return None
 
 
