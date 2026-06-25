@@ -9,7 +9,6 @@ ADDRESS_TYPE_MAP = {
 PHONE_TYPE_MAP = {
     "primary": "DEFAULT",
     "mobile": "MOBILE",
-    "ddi": "DDI",
     "fax": "FAX",
     "unknown": "DEFAULT",
 }
