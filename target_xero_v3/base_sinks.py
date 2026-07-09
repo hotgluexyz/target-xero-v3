@@ -88,21 +88,35 @@ class XeroBatchSink(HotglueBatchSink):
         self.logger.info(f"Processing {self.stream_name}")
         return self.xero_client.push(self.endpoint, {self.endpoint: payload_records})
 
+    def _has_validation_errors(self, item):
+        if item.get("HasValidationErrors"):
+            return True
+        if item.get("StatusAttributeString") == "ERROR":
+            return True
+        return bool(item.get("ValidationErrors"))
+
+    def _validation_error_message(self, item):
+        messages = [
+            error["Message"]
+            for error in item.get("ValidationErrors", [])
+            if error.get("Message")
+        ]
+        if messages:
+            return "; ".join(messages)
+        return item.get("StatusAttributeString") or "Validation failed"
+
     def handle_batch_response(self, response, records):
         state_updates = []
         items = response.json().get(self.endpoint, [])
         for i, item in enumerate(items):
             record_payload = records[i] if i < len(records) else {}
             external_id = record_payload.get(self.record_type, {}).get("externalId")
-            if item.get("HasValidationErrors"):
+            if self._has_validation_errors(item):
                 state_updates.append(
                     {
                         "success": False,
                         "externalId": external_id,
-                        "error": "; ".join(
-                            error["Message"]
-                            for error in item.get("ValidationErrors", [])
-                        ),
+                        "error": self._validation_error_message(item),
                         "hg_error_class": InvalidPayloadError.__name__,
                     }
                 )

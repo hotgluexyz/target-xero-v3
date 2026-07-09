@@ -74,3 +74,22 @@ EXISTING_VENDOR_REFERENCE = {
     "ContactID": "00000000-0000-4000-8000-0000000000v1",
     "Name": "Fake Vendor LLC (Sample)",
 }
+
+ITEM_RECORD = {
+    "externalId": "FAKE-ITEM-EXT-001",
+    "itemNumber": "FAKE-ITEM-CODE-001",
+    "name": "Fake Item (Sample)",
+    "displayName": "Fake Item Display (Sample)",
+    "isBillItem": True,
+    "isInvoiceItem": True,
+    "accounts": [
+        {"accountType": "income", "accountNumber": "200"},
+        {"accountType": "expense", "accountNumber": "400"},
+    ],
+}
+
+EXISTING_ITEM_REFERENCE = {
+    "ItemID": "00000000-0000-4000-8000-0000000000i1",
+    "Code": "FAKE-ITEM-CODE-001",
+    "Name": "Fake Item (Sample)",
+}
