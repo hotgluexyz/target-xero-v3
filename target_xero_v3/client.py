@@ -136,6 +136,10 @@ class XeroClient:
         url = join(BASE_URL, f"{resource}?summarizeErrors=false")
         return self._make_request(url, "POST", data=payload)
 
+    def create_payments(self, payload):
+        url = join(BASE_URL, "Payments?summarizeErrors=false")
+        return self._make_request(url, "PUT", data=payload)
+
     def create_tracking_option(self, tracking_category_id, payload):
         url = join(BASE_URL, f"TrackingCategories/{tracking_category_id}/Options")
         return self._make_request(url, "PUT", data=payload)
@@ -208,7 +212,7 @@ class XeroClient:
         messages = []
         for element in response_json.get("Elements") or []:
             messages.extend(self._validation_errors_from_item(element))
-        for key in ("Contacts", "Items", "Invoices", "Options", "TrackingCategories"):
+        for key in ("Contacts", "Items", "Invoices", "Payments", "Options", "TrackingCategories"):
             for item in response_json.get(key) or []:
                 messages.extend(self._validation_errors_from_item(item))
         return messages

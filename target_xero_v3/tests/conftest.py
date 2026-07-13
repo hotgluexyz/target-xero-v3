@@ -3,6 +3,7 @@ import pytest
 from target_xero_v3.tests.fixtures.mappers import (
     BILL_EXPENSE_RECORD,
     BILL_LINE_ITEM_RECORD,
+    BILL_PAYMENT_RECORD,
     BILL_RECORD,
     CLASS_RECORD,
     CUSTOMER_RECORD,
@@ -13,9 +14,11 @@ from target_xero_v3.tests.fixtures.mappers import (
     EXISTING_ITEM_REFERENCE,
     EXISTING_VENDOR_REFERENCE,
     INVOICE_LINE_ITEM_RECORD,
+    INVOICE_PAYMENT_RECORD,
     INVOICE_RECORD,
     ITEM_RECORD,
     LOCATION_TRACKING_CATEGORY_REFERENCE,
+    PAYMENT_BANK_ACCOUNT,
     TRACKING_CATEGORY_REFERENCE,
     VENDOR_RECORD,
 )
@@ -78,6 +81,7 @@ def empty_reference_data():
         "Accounts": [
             {"AccountID": "00000000-0000-4000-8000-0000000000a1", "Code": "200", "Name": "Sales"},
             {"AccountID": "00000000-0000-4000-8000-0000000000a2", "Code": "400", "Name": "Advertising"},
+            dict(PAYMENT_BANK_ACCOUNT),
         ],
         "Currencies": [{"Code": "USD", "Description": "United States Dollar"}],
         "Organisation": [{"BaseCurrency": "USD"}],
@@ -168,3 +172,36 @@ def bill_reference_data(existing_bill_reference, existing_vendor_reference, exis
 @pytest.fixture
 def existing_bill_reference():
     return dict(EXISTING_BILL_REFERENCE)
+
+
+@pytest.fixture
+def invoice_payment_record():
+    return dict(INVOICE_PAYMENT_RECORD)
+
+
+@pytest.fixture
+def bill_payment_record():
+    return dict(BILL_PAYMENT_RECORD)
+
+
+@pytest.fixture
+def payment_bank_account():
+    return dict(PAYMENT_BANK_ACCOUNT)
+
+
+@pytest.fixture
+def invoice_payment_reference_data(existing_invoice_reference, payment_bank_account, empty_reference_data):
+    return {
+        **empty_reference_data,
+        "Invoices": [existing_invoice_reference],
+        "Accounts": empty_reference_data["Accounts"],
+    }
+
+
+@pytest.fixture
+def bill_payment_reference_data(existing_bill_reference, payment_bank_account, empty_reference_data):
+    return {
+        **empty_reference_data,
+        "Bills": [existing_bill_reference],
+        "Accounts": empty_reference_data["Accounts"],
+    }

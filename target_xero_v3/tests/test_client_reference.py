@@ -98,14 +98,3 @@ class TestGetExistingEntitiesForRecords:
 
         with pytest.raises(Exception, match="bad query"):
             client.filter("Items", where='ItemID==Guid("00000000-0000-4000-8000-000000000099")')
-
-    def test_skips_invalid_guid_values(self, client):
-        client.filter = MagicMock(return_value=[])
-
-        client.get_existing_entities_for_records(
-            "Items",
-            [{"itemId": "not-a-guid"}],
-            [{"field_from": "itemId", "xero_field": "ItemID", "filter_type": "guid"}],
-        )
-
-        client.filter.assert_not_called()

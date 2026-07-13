@@ -5,9 +5,11 @@ from hotglue_singer_sdk.helpers.capabilities import AlertingLevel
 from hotglue_singer_sdk.target_sdk.target import TargetHotglue
 
 from target_xero_v3.client import XeroClient
+from target_xero_v3.sinks.bill_payment_sink import BillPaymentSink
 from target_xero_v3.sinks.bill_sink import BillSink
 from target_xero_v3.sinks.class_sink import ClassSink
 from target_xero_v3.sinks.customer_sink import CustomerSink
+from target_xero_v3.sinks.invoice_payment_sink import InvoicePaymentSink
 from target_xero_v3.sinks.invoice_sink import InvoiceSink
 from target_xero_v3.sinks.item_sink import ItemSink
 from target_xero_v3.sinks.vendor_sink import VendorSink
@@ -37,6 +39,8 @@ class TargetXero(TargetHotglue):
         ClassSink,
         InvoiceSink,
         BillSink,
+        InvoicePaymentSink,
+        BillPaymentSink,
     ]
 
     def __init__(

@@ -216,3 +216,27 @@ BILL_EXPENSE_RECORD = {
     "amount": 15.0,
     "taxCode": "INPUT",
 }
+
+INVOICE_PAYMENT_RECORD = {
+    "externalId": "FAKE-INVOICE-PAYMENT-EXT-001",
+    "invoiceNumber": "HG-INV-EXISTING",
+    "accountName": "Business Bank",
+    "amount": 50.0,
+    "paymentDate": "2026-07-15",
+    "exchangeRate": 1.0,
+    "paymentNumber": "PAY-001",
+}
+
+BILL_PAYMENT_RECORD = {
+    "externalId": "FAKE-BILL-PAYMENT-EXT-001",
+    "billNumber": "HG-BILL-EXISTING",
+    "accountId": "00000000-0000-4000-8000-0000000000b1",
+    "amount": 25.0,
+    "paymentDate": "2026-07-15",
+}
+
+PAYMENT_BANK_ACCOUNT = {
+    "AccountID": "00000000-0000-4000-8000-0000000000b1",
+    "Name": "Business Bank",
+    "Type": "BANK",
+}

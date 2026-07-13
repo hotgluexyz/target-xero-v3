@@ -118,6 +118,33 @@ class TestResponseErrorMessage:
             "Tracking Option cannot be archived because it is not in use."
         )
 
+    def test_parses_validation_errors_from_payments(self, client):
+        response = MagicMock()
+        response.json.return_value = {
+            "Payments": [
+                {
+                    "ValidationErrors": [{"Message": "Payment amount exceeds amount outstanding"}]
+                }
+            ]
+        }
+
+        assert client._response_error_message(response) == (
+            "Payment amount exceeds amount outstanding"
+        )
+
+    @patch.object(XeroClient, "_make_request")
+    def test_create_payments_uses_put(self, mock_request, client):
+        mock_request.return_value = MagicMock(status_code=200)
+        payload = {"Payments": [{"Amount": 10.0}]}
+
+        client.create_payments(payload)
+
+        mock_request.assert_called_once_with(
+            "https://api.xero.com/api.xro/2.0/Payments?summarizeErrors=false",
+            "PUT",
+            data=payload,
+        )
+
 
 class TestRateLimits:
     def test_raises_retriable_error_on_429(self, client):
