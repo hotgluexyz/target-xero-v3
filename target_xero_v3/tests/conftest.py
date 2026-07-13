@@ -5,9 +5,13 @@ from target_xero_v3.tests.fixtures.mappers import (
     CUSTOMER_RECORD,
     EXISTING_CLASS_REFERENCE,
     EXISTING_CUSTOMER_REFERENCE,
+    EXISTING_INVOICE_REFERENCE,
     EXISTING_ITEM_REFERENCE,
     EXISTING_VENDOR_REFERENCE,
+    INVOICE_LINE_ITEM_RECORD,
+    INVOICE_RECORD,
     ITEM_RECORD,
+    LOCATION_TRACKING_CATEGORY_REFERENCE,
     TRACKING_CATEGORY_REFERENCE,
     VENDOR_RECORD,
 )
@@ -34,18 +38,41 @@ def class_record():
 
 
 @pytest.fixture
+def invoice_record():
+    return dict(INVOICE_RECORD)
+
+
+@pytest.fixture
+def invoice_line_item_record():
+    return dict(INVOICE_LINE_ITEM_RECORD)
+
+
+@pytest.fixture
 def empty_reference_data():
     return {
         "Customers": [],
         "Vendors": [],
         "Items": [],
         "Classes": [],
+        "Invoices": [],
         "Accounts": [
             {"AccountID": "00000000-0000-4000-8000-0000000000a1", "Code": "200", "Name": "Sales"},
             {"AccountID": "00000000-0000-4000-8000-0000000000a2", "Code": "400", "Name": "Advertising"},
         ],
         "Currencies": [{"Code": "USD", "Description": "United States Dollar"}],
         "Organisation": [{"BaseCurrency": "USD"}],
+        "tenant_config": {
+            "xero": {
+                "dimension_mappings": {
+                    "class": "Classes",
+                    "location": "Locations",
+                }
+            }
+        },
+        "TrackingCategories": [
+            dict(TRACKING_CATEGORY_REFERENCE),
+            dict(LOCATION_TRACKING_CATEGORY_REFERENCE),
+        ],
     }
 
 
@@ -91,3 +118,18 @@ def class_reference_data(existing_class_reference, empty_reference_data):
 @pytest.fixture
 def existing_class_reference():
     return dict(EXISTING_CLASS_REFERENCE)
+
+
+@pytest.fixture
+def invoice_reference_data(existing_invoice_reference, existing_customer_reference, existing_item_reference, empty_reference_data):
+    return {
+        **empty_reference_data,
+        "Invoices": [existing_invoice_reference],
+        "Customers": [existing_customer_reference],
+        "Items": [existing_item_reference],
+    }
+
+
+@pytest.fixture
+def existing_invoice_reference():
+    return dict(EXISTING_INVOICE_REFERENCE)

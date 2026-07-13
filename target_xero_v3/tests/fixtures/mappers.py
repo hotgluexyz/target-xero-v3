@@ -111,3 +111,54 @@ TRACKING_CATEGORY_REFERENCE = {
     "Name": "Classes",
     "Options": [EXISTING_CLASS_REFERENCE],
 }
+
+LOCATION_TRACKING_CATEGORY_REFERENCE = {
+    "TrackingCategoryID": "00000000-0000-4000-8000-0000000000tc2",
+    "Name": "Locations",
+    "Options": [
+        {
+            "TrackingOptionID": "00000000-0000-4000-8000-0000000000lo1",
+            "Name": "East Coast",
+        }
+    ],
+}
+
+INVOICE_RECORD = {
+    "externalId": "FAKE-INVOICE-EXT-001",
+    "invoiceNumber": "HG-INV-001",
+    "customerId": "00000000-0000-4000-8000-0000000000c1",
+    "customerName": "Fake Customer Co (Sample)",
+    "description": "Fake invoice reference",
+    "currency": "USD",
+    "exchangeRate": 1.0,
+    "status": "DRAFT",
+    "issueDate": "2026-07-01",
+    "dueDate": "2026-07-31",
+    "lineItems": [
+        {
+            "description": "Consulting services",
+            "itemNumber": "FAKE-ITEM-CODE-001",
+            "quantity": 2,
+            "unitPrice": 100.0,
+            "accountNumber": "200",
+            "taxCode": "OUTPUT",
+            "className": "Fake Class (Sample)",
+        }
+    ],
+}
+
+EXISTING_INVOICE_REFERENCE = {
+    "InvoiceID": "00000000-0000-4000-8000-0000000000inv1",
+    "InvoiceNumber": "HG-INV-EXISTING",
+    "Type": "ACCREC",
+}
+
+INVOICE_LINE_ITEM_RECORD = {
+    "description": "Line item only",
+    "itemNumber": "FAKE-ITEM-CODE-001",
+    "quantity": 1,
+    "unitPrice": 50.0,
+    "accountNumber": "200",
+    "taxCode": "OUTPUT",
+    "classId": "00000000-0000-4000-8000-0000000000cl1",
+}

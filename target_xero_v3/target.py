@@ -7,6 +7,7 @@ from hotglue_singer_sdk.target_sdk.target import TargetHotglue
 from target_xero_v3.client import XeroClient
 from target_xero_v3.sinks.class_sink import ClassSink
 from target_xero_v3.sinks.customer_sink import CustomerSink
+from target_xero_v3.sinks.invoice_sink import InvoiceSink
 from target_xero_v3.sinks.item_sink import ItemSink
 from target_xero_v3.sinks.vendor_sink import VendorSink
 import os
@@ -33,6 +34,7 @@ class TargetXero(TargetHotglue):
         VendorSink,
         ItemSink,
         ClassSink,
+        InvoiceSink,
     ]
 
     def __init__(

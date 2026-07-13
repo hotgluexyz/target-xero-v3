@@ -166,7 +166,7 @@ class XeroClient:
         messages = []
         for element in response_json.get("Elements") or []:
             messages.extend(self._validation_errors_from_item(element))
-        for key in ("Contacts", "Items", "Options", "TrackingCategories"):
+        for key in ("Contacts", "Items", "Invoices", "Options", "TrackingCategories"):
             for item in response_json.get(key) or []:
                 messages.extend(self._validation_errors_from_item(item))
         return messages
