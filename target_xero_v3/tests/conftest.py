@@ -1,8 +1,12 @@
 import pytest
 
 from target_xero_v3.tests.fixtures.mappers import (
+    BILL_EXPENSE_RECORD,
+    BILL_LINE_ITEM_RECORD,
+    BILL_RECORD,
     CLASS_RECORD,
     CUSTOMER_RECORD,
+    EXISTING_BILL_REFERENCE,
     EXISTING_CLASS_REFERENCE,
     EXISTING_CUSTOMER_REFERENCE,
     EXISTING_INVOICE_REFERENCE,
@@ -33,6 +37,21 @@ def item_record():
 
 
 @pytest.fixture
+def bill_record():
+    return dict(BILL_RECORD)
+
+
+@pytest.fixture
+def bill_line_item_record():
+    return dict(BILL_LINE_ITEM_RECORD)
+
+
+@pytest.fixture
+def bill_expense_record():
+    return dict(BILL_EXPENSE_RECORD)
+
+
+@pytest.fixture
 def class_record():
     return dict(CLASS_RECORD)
 
@@ -55,6 +74,7 @@ def empty_reference_data():
         "Items": [],
         "Classes": [],
         "Invoices": [],
+        "Bills": [],
         "Accounts": [
             {"AccountID": "00000000-0000-4000-8000-0000000000a1", "Code": "200", "Name": "Sales"},
             {"AccountID": "00000000-0000-4000-8000-0000000000a2", "Code": "400", "Name": "Advertising"},
@@ -133,3 +153,18 @@ def invoice_reference_data(existing_invoice_reference, existing_customer_referen
 @pytest.fixture
 def existing_invoice_reference():
     return dict(EXISTING_INVOICE_REFERENCE)
+
+
+@pytest.fixture
+def bill_reference_data(existing_bill_reference, existing_vendor_reference, existing_item_reference, empty_reference_data):
+    return {
+        **empty_reference_data,
+        "Bills": [existing_bill_reference],
+        "Vendors": [existing_vendor_reference],
+        "Items": [existing_item_reference],
+    }
+
+
+@pytest.fixture
+def existing_bill_reference():
+    return dict(EXISTING_BILL_REFERENCE)

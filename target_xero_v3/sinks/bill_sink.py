@@ -1,26 +1,26 @@
 from typing import Dict, List
 
-from hotglue_models_accounting.accounting import Invoice
+from hotglue_models_accounting.accounting import Bill
 
 from target_xero_v3.base_sinks import XeroBatchSink
-from target_xero_v3.mappers.invoice_schema_mapper import InvoiceSchemaMapper
+from target_xero_v3.mappers.bill_schema_mapper import BillSchemaMapper
 from target_xero_v3.sinks.transaction_reference import build_transaction_reference_data
 
-INVOICE_FILTER_MAPPINGS = [
+BILL_FILTER_MAPPINGS = [
     {"field_from": "id", "xero_field": "InvoiceID", "filter_type": "guid"},
-    {"field_from": "invoiceNumber", "xero_field": "InvoiceNumber", "filter_type": "string"},
+    {"field_from": "billNumber", "xero_field": "InvoiceNumber", "filter_type": "string"},
 ]
 
-CUSTOMER_FILTER_MAPPINGS = [
-    {"field_from": "customerId", "xero_field": "ContactID", "filter_type": "guid"},
-    {"field_from": "customerNumber", "xero_field": "ContactNumber", "filter_type": "string"},
-    {"field_from": "customerName", "xero_field": "Name", "filter_type": "string"},
+VENDOR_FILTER_MAPPINGS = [
+    {"field_from": "vendorId", "xero_field": "ContactID", "filter_type": "guid"},
+    {"field_from": "vendorNumber", "xero_field": "ContactNumber", "filter_type": "string"},
+    {"field_from": "vendorName", "xero_field": "Name", "filter_type": "string"},
 ]
 
 
-class InvoiceSink(XeroBatchSink):
-    name = "Invoices"
-    unified_schema = Invoice
+class BillSink(XeroBatchSink):
+    name = "Bills"
+    unified_schema = Bill
     auto_validate_unified_schema = True
     endpoint = "Invoices"
     record_type = "Invoice"
@@ -31,15 +31,17 @@ class InvoiceSink(XeroBatchSink):
             self.xero_client,
             self._target,
             records,
-            entity_stream=self.name,
-            entity_filter_mappings=INVOICE_FILTER_MAPPINGS,
+            entity_stream="Invoices",
+            entity_reference_key=self.name,
+            entity_filter_mappings=BILL_FILTER_MAPPINGS,
             entity_id_field=self.id_field,
-            contact_filter_mappings=CUSTOMER_FILTER_MAPPINGS,
-            contact_key="Customers",
+            contact_filter_mappings=VENDOR_FILTER_MAPPINGS,
+            contact_key="Vendors",
+            nested_keys=("lineItems", "expenses"),
         )
 
     def process_batch_record(self, record: dict, index: int, reference_data: dict) -> dict:
-        mapped_record = InvoiceSchemaMapper(
+        mapped_record = BillSchemaMapper(
             record, self.name, reference_data=reference_data
         ).to_xero()
         if record.get("externalId"):

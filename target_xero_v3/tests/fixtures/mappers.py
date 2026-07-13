@@ -162,3 +162,57 @@ INVOICE_LINE_ITEM_RECORD = {
     "taxCode": "OUTPUT",
     "classId": "00000000-0000-4000-8000-0000000000cl1",
 }
+
+BILL_RECORD = {
+    "externalId": "FAKE-BILL-EXT-001",
+    "billNumber": "HG-BILL-001",
+    "vendorId": "00000000-0000-4000-8000-0000000000v1",
+    "vendorName": "Fake Vendor LLC (Sample)",
+    "description": "Fake bill reference",
+    "currency": "USD",
+    "exchangeRate": 1.0,
+    "isDraft": True,
+    "taxIncluded": False,
+    "issueDate": "2026-07-01",
+    "dueDate": "2026-07-31",
+    "lineItems": [
+        {
+            "description": "Inventory purchase",
+            "itemNumber": "FAKE-ITEM-CODE-001",
+            "quantity": 1,
+            "unitPrice": 75.0,
+            "accountNumber": "400",
+            "taxCode": "INPUT",
+        }
+    ],
+    "expenses": [
+        {
+            "description": "Office supplies",
+            "accountNumber": "400",
+            "amount": 25.0,
+            "taxCode": "INPUT",
+        }
+    ],
+}
+
+EXISTING_BILL_REFERENCE = {
+    "InvoiceID": "00000000-0000-4000-8000-0000000000bill1",
+    "InvoiceNumber": "HG-BILL-EXISTING",
+    "Type": "ACCPAY",
+}
+
+BILL_LINE_ITEM_RECORD = {
+    "description": "Bill line only",
+    "accountNumber": "400",
+    "quantity": 2,
+    "unitPrice": 30.0,
+    "taxCode": "INPUT",
+    "className": "Fake Class (Sample)",
+}
+
+BILL_EXPENSE_RECORD = {
+    "description": "Expense line only",
+    "accountNumber": "400",
+    "amount": 15.0,
+    "taxCode": "INPUT",
+}

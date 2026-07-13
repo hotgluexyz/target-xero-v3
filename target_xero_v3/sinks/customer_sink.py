@@ -25,15 +25,16 @@ class CustomerSink(XeroBatchSink):
 
         for contact_id in contact_ids:
             matches = self.xero_client.filter(
-                "Contacts", where=f'ContactID==guid"{contact_id}"'
+                "Contacts",
+                where=self.xero_client._build_where_clause("ContactID", contact_id, "guid"),
             )
             if matches:
                 existing_contacts.extend(matches)
 
         for contact_name in contact_names:
-            escaped = contact_name.replace('"', '\\"')
             matches = self.xero_client.filter(
-                "Contacts", where=f'Name=="{escaped}"'
+                "Contacts",
+                where=self.xero_client._build_where_clause("Name", contact_name, "string"),
             )
             if matches:
                 existing_contacts.extend(matches)

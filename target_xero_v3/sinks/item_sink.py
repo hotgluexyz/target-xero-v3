@@ -26,20 +26,25 @@ class ItemSink(XeroBatchSink):
 
         for item_id in item_ids:
             matches = self.xero_client.filter(
-                "Items", where=f'ItemID==guid"{item_id}"'
+                "Items",
+                where=self.xero_client._build_where_clause("ItemID", item_id, "guid"),
             )
             if matches:
                 existing_items.extend(matches)
 
         for item_code in item_codes:
-            escaped = item_code.replace('"', '\\"')
-            matches = self.xero_client.filter("Items", where=f'Code=="{escaped}"')
+            matches = self.xero_client.filter(
+                "Items",
+                where=self.xero_client._build_where_clause("Code", item_code, "string"),
+            )
             if matches:
                 existing_items.extend(matches)
 
         for item_name in item_names:
-            escaped = item_name.replace('"', '\\"')
-            matches = self.xero_client.filter("Items", where=f'Name=="{escaped}"')
+            matches = self.xero_client.filter(
+                "Items",
+                where=self.xero_client._build_where_clause("Name", item_name, "string"),
+            )
             if matches:
                 existing_items.extend(matches)
 

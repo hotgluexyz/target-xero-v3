@@ -3,13 +3,13 @@ from typing import Dict
 from target_xero_v3.mappers.xero_line_item_mapper import XeroLineItemMapper
 
 
-class InvoiceLineItemSchemaMapper(XeroLineItemMapper):
+class BillLineItemSchemaMapper(XeroLineItemMapper):
     field_mappings = {
         "description": "Description",
         "taxCode": "TaxType",
-        "discount": "DiscountAmount",
         "quantity": "Quantity",
         "unitPrice": "UnitAmount",
+        "amount": "LineAmount",
     }
 
     def to_xero(self) -> Dict:

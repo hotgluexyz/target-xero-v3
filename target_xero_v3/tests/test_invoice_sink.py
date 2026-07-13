@@ -148,3 +148,19 @@ class TestInvoiceSink:
         }
         with pytest.raises(InvalidPayloadError, match="Item with Id="):
             invoice_sink.process_batch_record(record, 0, reference_data)
+
+    def test_get_batch_reference_data_uses_shared_helper(self, invoice_sink, invoice_record):
+        invoice_sink.xero_client.get_existing_entities_for_records.side_effect = [
+            [],
+            [{"ContactID": "00000000-0000-4000-8000-0000000000c1"}],
+            [],
+        ]
+        invoice_sink.xero_client.filter.return_value = [{"AccountID": "a1", "Code": "200"}]
+
+        reference_data = invoice_sink.get_batch_reference_data([invoice_record])
+
+        assert reference_data["Invoices"] == []
+        assert reference_data["Customers"][0]["ContactID"] == (
+            "00000000-0000-4000-8000-0000000000c1"
+        )
+        assert invoice_sink.xero_client.get_existing_entities_for_records.call_count == 3
