@@ -145,6 +145,19 @@ class TestResponseErrorMessage:
             data=payload,
         )
 
+    @patch.object(XeroClient, "_make_request")
+    def test_post_manual_journal_uses_post(self, mock_request, client):
+        mock_request.return_value = MagicMock(status_code=200)
+        payload = {"ManualJournals": [{"Narration": "Test"}]}
+
+        client.post_manual_journal(payload)
+
+        mock_request.assert_called_once_with(
+            "https://api.xero.com/api.xro/2.0/ManualJournals?summarizeErrors=false",
+            "POST",
+            data=payload,
+        )
+
 
 class TestRateLimits:
     def test_raises_retriable_error_on_429(self, client):

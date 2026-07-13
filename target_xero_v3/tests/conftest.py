@@ -12,11 +12,13 @@ from target_xero_v3.tests.fixtures.mappers import (
     EXISTING_CUSTOMER_REFERENCE,
     EXISTING_INVOICE_REFERENCE,
     EXISTING_ITEM_REFERENCE,
+    EXISTING_JOURNAL_REFERENCE,
     EXISTING_VENDOR_REFERENCE,
     INVOICE_LINE_ITEM_RECORD,
     INVOICE_PAYMENT_RECORD,
     INVOICE_RECORD,
     ITEM_RECORD,
+    JOURNAL_ENTRY_RECORD,
     LOCATION_TRACKING_CATEGORY_REFERENCE,
     PAYMENT_BANK_ACCOUNT,
     TRACKING_CATEGORY_REFERENCE,
@@ -204,4 +206,22 @@ def bill_payment_reference_data(existing_bill_reference, payment_bank_account, e
         **empty_reference_data,
         "Bills": [existing_bill_reference],
         "Accounts": empty_reference_data["Accounts"],
+    }
+
+
+@pytest.fixture
+def journal_entry_record():
+    return dict(JOURNAL_ENTRY_RECORD)
+
+
+@pytest.fixture
+def existing_journal_reference():
+    return dict(EXISTING_JOURNAL_REFERENCE)
+
+
+@pytest.fixture
+def journal_reference_data(existing_journal_reference, empty_reference_data):
+    return {
+        **empty_reference_data,
+        "JournalEntries": [existing_journal_reference],
     }

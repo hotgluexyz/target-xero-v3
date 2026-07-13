@@ -140,6 +140,10 @@ class XeroClient:
         url = join(BASE_URL, "Payments?summarizeErrors=false")
         return self._make_request(url, "PUT", data=payload)
 
+    def post_manual_journal(self, payload):
+        url = join(BASE_URL, "ManualJournals?summarizeErrors=false")
+        return self._make_request(url, "POST", data=payload)
+
     def create_tracking_option(self, tracking_category_id, payload):
         url = join(BASE_URL, f"TrackingCategories/{tracking_category_id}/Options")
         return self._make_request(url, "PUT", data=payload)

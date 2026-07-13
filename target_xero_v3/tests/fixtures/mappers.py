@@ -240,3 +240,29 @@ PAYMENT_BANK_ACCOUNT = {
     "Name": "Business Bank",
     "Type": "BANK",
 }
+
+JOURNAL_ENTRY_RECORD = {
+    "externalId": "FAKE-JOURNAL-EXT-001",
+    "description": "Sample manual journal",
+    "transactionDate": "2026-07-01",
+    "isDraft": True,
+    "lineItems": [
+        {
+            "description": "Debit line",
+            "accountNumber": "200",
+            "debitAmount": 100.0,
+            "className": "Fake Class (Sample)",
+        },
+        {
+            "description": "Credit line",
+            "accountNumber": "400",
+            "creditAmount": 100.0,
+        },
+    ],
+}
+
+EXISTING_JOURNAL_REFERENCE = {
+    "ManualJournalID": "00000000-0000-4000-8000-0000000000mj1",
+    "Narration": "Existing journal",
+    "Status": "DRAFT",
+}

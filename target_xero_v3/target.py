@@ -12,6 +12,7 @@ from target_xero_v3.sinks.customer_sink import CustomerSink
 from target_xero_v3.sinks.invoice_payment_sink import InvoicePaymentSink
 from target_xero_v3.sinks.invoice_sink import InvoiceSink
 from target_xero_v3.sinks.item_sink import ItemSink
+from target_xero_v3.sinks.manual_journal_sink import ManualJournalSink
 from target_xero_v3.sinks.vendor_sink import VendorSink
 import os
 import json
@@ -41,6 +42,7 @@ class TargetXero(TargetHotglue):
         BillSink,
         InvoicePaymentSink,
         BillPaymentSink,
+        ManualJournalSink,
     ]
 
     def __init__(
