@@ -105,29 +105,28 @@ class XeroBatchSink(HotglueBatchSink):
             return "; ".join(messages)
         return item.get("StatusAttributeString") or "Validation failed"
 
+    def _state_update_from_item(self, item, record_payload, external_id):
+        if self._has_validation_errors(item):
+            return {
+                "success": False,
+                "externalId": external_id,
+                "error": self._validation_error_message(item),
+                "hg_error_class": InvalidPayloadError.__name__,
+            }
+        state = {
+            "id": item.get(self.id_field),
+            "externalId": external_id,
+            "success": True,
+        }
+        if record_payload.get("operation") == "update":
+            state["is_updated"] = True
+        return state
+
     def handle_batch_response(self, response, records):
         state_updates = []
         items = response.json().get(self.endpoint, [])
         for i, item in enumerate(items):
             record_payload = records[i] if i < len(records) else {}
             external_id = record_payload.get(self.record_type, {}).get("externalId")
-            if self._has_validation_errors(item):
-                state_updates.append(
-                    {
-                        "success": False,
-                        "externalId": external_id,
-                        "error": self._validation_error_message(item),
-                        "hg_error_class": InvalidPayloadError.__name__,
-                    }
-                )
-            else:
-                state = {
-                    "id": item.get(self.id_field),
-                    "externalId": external_id,
-                    "success": True,
-                }
-                if record_payload.get("operation") == "update":
-                    state["is_updated"] = True
-                state_updates.append(state)
-
+            state_updates.append(self._state_update_from_item(item, record_payload, external_id))
         return {"state_updates": state_updates}

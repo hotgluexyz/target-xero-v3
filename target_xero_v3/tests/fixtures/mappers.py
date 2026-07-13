@@ -93,3 +93,21 @@ EXISTING_ITEM_REFERENCE = {
     "Code": "FAKE-ITEM-CODE-001",
     "Name": "Fake Item (Sample)",
 }
+
+CLASS_RECORD = {
+    "externalId": "FAKE-CLASS-EXT-001",
+    "name": "Fake Class (Sample)",
+    "fullname": "Fake Class Fullname (Sample)",
+    "isActive": True,
+}
+
+EXISTING_CLASS_REFERENCE = {
+    "TrackingOptionID": "00000000-0000-4000-8000-0000000000cl1",
+    "Name": "Fake Class (Sample)",
+}
+
+TRACKING_CATEGORY_REFERENCE = {
+    "TrackingCategoryID": "00000000-0000-4000-8000-0000000000tc1",
+    "Name": "Classes",
+    "Options": [EXISTING_CLASS_REFERENCE],
+}

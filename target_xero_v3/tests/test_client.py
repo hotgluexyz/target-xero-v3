@@ -98,6 +98,27 @@ class TestRequestTimeouts:
         assert mock_post.call_args.kwargs["timeout"] == REQUEST_TIMEOUT
 
 
+class TestResponseErrorMessage:
+    def test_parses_validation_errors_from_elements(self, client):
+        response = MagicMock()
+        response.json.return_value = {
+            "Message": "A validation exception occurred",
+            "Elements": [
+                {
+                    "ValidationErrors": [
+                        {
+                            "Message": "Tracking Option cannot be archived because it is not in use."
+                        }
+                    ]
+                }
+            ],
+        }
+
+        assert client._response_error_message(response) == (
+            "Tracking Option cannot be archived because it is not in use."
+        )
+
+
 class TestRateLimits:
     def test_raises_retriable_error_on_429(self, client):
         response = MagicMock(

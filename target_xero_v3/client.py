@@ -94,6 +94,17 @@ class XeroClient:
         url = join(BASE_URL, f"{resource}?summarizeErrors=false")
         return self._make_request(url, "POST", data=payload)
 
+    def create_tracking_option(self, tracking_category_id, payload):
+        url = join(BASE_URL, f"TrackingCategories/{tracking_category_id}/Options")
+        return self._make_request(url, "PUT", data=payload)
+
+    def update_tracking_option(self, tracking_category_id, tracking_option_id, payload):
+        url = join(
+            BASE_URL,
+            f"TrackingCategories/{tracking_category_id}/Options/{tracking_option_id}",
+        )
+        return self._make_request(url, "POST", data=payload)
+
     def _make_request(self, url, method, data=None, params=None, headers=None):
         self.refresh_credentials()
         request_headers = {
@@ -151,11 +162,29 @@ class XeroClient:
             f"Error: {self._response_error_message(response)}"
         )
 
+    def _validation_error_messages(self, response_json):
+        messages = []
+        for element in response_json.get("Elements") or []:
+            messages.extend(self._validation_errors_from_item(element))
+        for key in ("Contacts", "Items", "Options", "TrackingCategories"):
+            for item in response_json.get(key) or []:
+                messages.extend(self._validation_errors_from_item(item))
+        return messages
+
+    def _validation_errors_from_item(self, item):
+        return [
+            error["Message"]
+            for error in item.get("ValidationErrors", [])
+            if error.get("Message")
+        ]
+
     def _response_error_message(self, response):
         try:
             response_json = response.json()
         except Exception:
             response_json = {}
+        if validation_messages := self._validation_error_messages(response_json):
+            return "; ".join(validation_messages)
         return (
             response_json.get("error_description")
             or response_json.get("error")

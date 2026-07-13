@@ -1,11 +1,14 @@
 import pytest
 
 from target_xero_v3.tests.fixtures.mappers import (
+    CLASS_RECORD,
     CUSTOMER_RECORD,
+    EXISTING_CLASS_REFERENCE,
     EXISTING_CUSTOMER_REFERENCE,
     EXISTING_ITEM_REFERENCE,
     EXISTING_VENDOR_REFERENCE,
     ITEM_RECORD,
+    TRACKING_CATEGORY_REFERENCE,
     VENDOR_RECORD,
 )
 
@@ -26,11 +29,17 @@ def item_record():
 
 
 @pytest.fixture
+def class_record():
+    return dict(CLASS_RECORD)
+
+
+@pytest.fixture
 def empty_reference_data():
     return {
         "Customers": [],
         "Vendors": [],
         "Items": [],
+        "Classes": [],
         "Accounts": [
             {"AccountID": "00000000-0000-4000-8000-0000000000a1", "Code": "200", "Name": "Sales"},
             {"AccountID": "00000000-0000-4000-8000-0000000000a2", "Code": "400", "Name": "Advertising"},
@@ -68,3 +77,17 @@ def item_reference_data(existing_item_reference, empty_reference_data):
 @pytest.fixture
 def existing_item_reference():
     return dict(EXISTING_ITEM_REFERENCE)
+
+
+@pytest.fixture
+def class_reference_data(existing_class_reference, empty_reference_data):
+    return {
+        **empty_reference_data,
+        "Classes": [existing_class_reference],
+        "TrackingCategory": dict(TRACKING_CATEGORY_REFERENCE),
+    }
+
+
+@pytest.fixture
+def existing_class_reference():
+    return dict(EXISTING_CLASS_REFERENCE)
