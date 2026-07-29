@@ -131,7 +131,6 @@ class PaymentSchemaMapper(BaseMapper):
         return {}
 
     def _map_reference(self):
-        for field in ("paymentNumber", "transactionNumber"):
-            if reference := self.record.get(field):
-                return {"Reference": reference}
+        if reference := self.record.get("description"):
+            return {"Reference": reference}
         return {}

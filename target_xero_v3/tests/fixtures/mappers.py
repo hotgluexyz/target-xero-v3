@@ -224,7 +224,7 @@ INVOICE_PAYMENT_RECORD = {
     "amount": 50.0,
     "paymentDate": "2026-07-15",
     "exchangeRate": 1.0,
-    "paymentNumber": "PAY-001",
+    "description": "PAY-001",
 }
 
 BILL_PAYMENT_RECORD = {
