@@ -125,6 +125,24 @@ class TestItemSchemaMapper:
             "COGSAccountCode": "500",
         }
 
+    def test_maps_tracked_inventory_accounts(self, empty_reference_data):
+        record = {
+            "name": "Tracked Item",
+            "itemNumber": "BK-IT-TRK-01",
+            "accounts": [
+                {"accountType": "income", "accountNumber": "4100"},
+                {"accountType": "cogs", "accountNumber": "5000"},
+                {"accountType": "inventory", "accountNumber": "AZ0004"},
+            ],
+        }
+        payload = ItemSchemaMapper(
+            record, "Items", reference_data=empty_reference_data
+        ).to_xero()
+
+        assert payload["SalesDetails"] == {"AccountCode": "4100"}
+        assert payload["PurchaseDetails"] == {"COGSAccountCode": "5000"}
+        assert payload["InventoryAssetAccountCode"] == "AZ0004"
+
     def test_omits_unmapped_fields(self, empty_reference_data):
         record = {
             "name": "Minimal Item (Sample)",

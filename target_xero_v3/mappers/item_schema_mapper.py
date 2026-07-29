@@ -6,6 +6,7 @@ ACCOUNT_TYPE_FIELDS = {
     "income": ("SalesDetails", "AccountCode"),
     "expense": ("PurchaseDetails", "AccountCode"),
     "cogs": ("PurchaseDetails", "COGSAccountCode"),
+    "inventory": (None, "InventoryAssetAccountCode"),
 }
 
 CATEGORY_FLAGS = {
@@ -72,6 +73,7 @@ class ItemSchemaMapper(BaseMapper):
 
     def _map_accounts(self):
         details = {"SalesDetails": {}, "PurchaseDetails": {}}
+        payload = {}
         for item_account in self.record.get("accounts") or []:
             account_type = (item_account.get("accountType") or "").casefold()
             mapping = ACCOUNT_TYPE_FIELDS.get(account_type)
@@ -79,9 +81,11 @@ class ItemSchemaMapper(BaseMapper):
             if not mapping or not code:
                 continue
             section, field = mapping
-            details[section][field] = code
+            if section is None:
+                payload[field] = code
+            else:
+                details[section][field] = code
 
-        payload = {}
         if details["SalesDetails"]:
             payload["SalesDetails"] = details["SalesDetails"]
         if details["PurchaseDetails"]:
