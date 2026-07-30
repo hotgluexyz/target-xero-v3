@@ -9,7 +9,7 @@ class InvoiceLineItemSchemaMapper(XeroLineItemMapper):
         "taxCode": "TaxType",
         "discount": "DiscountAmount",
         "quantity": "Quantity",
-        "unitPrice": "UnitAmount",
+        "unitPrice": "UnitAmount"
     }
 
     def to_xero(self) -> Dict:

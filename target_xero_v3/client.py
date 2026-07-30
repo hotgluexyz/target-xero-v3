@@ -1,3 +1,4 @@
+from requests.exceptions import SSLError
 import json
 from base64 import b64encode
 from datetime import datetime, timedelta, timezone
@@ -8,6 +9,7 @@ import pytz
 import requests
 from hotglue_etl_exceptions import InvalidCredentialsError
 from hotglue_singer_sdk.exceptions import RetriableAPIError
+import backoff
 
 
 BASE_URL = "https://api.xero.com/api.xro/2.0"
@@ -155,6 +157,12 @@ class XeroClient:
         )
         return self._make_request(url, "POST", data=payload)
 
+    @backoff.on_exception(backoff.expo, (
+        RetriableAPIError,
+        SSLError,
+        ConnectionError,
+        TimeoutError
+        ), max_tries=5)
     def _make_request(self, url, method, data=None, params=None, headers=None):
         self.refresh_credentials()
         request_headers = {
