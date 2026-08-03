@@ -156,6 +156,48 @@ class TestHandleBatchResponse:
             ]
         }
 
+    def test_returns_item_validation_error_without_has_validation_errors_flag(
+        self, batch_sink
+    ):
+        batch_sink.endpoint = "Items"
+        batch_sink.record_type = "Item"
+        batch_sink.id_field = "ItemID"
+        records = [
+            {
+                "bId": "0",
+                "operation": "create",
+                "Item": {
+                    "Name": "HG Perm Item P02 Minimal",
+                    "externalId": "EXT-ITEM-P02-MINIMAL",
+                },
+            }
+        ]
+        response = _mock_response(
+            batch_sink,
+            items=[
+                {
+                    "ItemID": "00000000-0000-0000-0000-000000000000",
+                    "StatusAttributeString": "ERROR",
+                    "ValidationErrors": [
+                        {"Message": "Price List Item Code must be supplied"}
+                    ],
+                }
+            ],
+        )
+
+        result = batch_sink.handle_batch_response(response, records)
+
+        assert result == {
+            "state_updates": [
+                {
+                    "success": False,
+                    "externalId": "EXT-ITEM-P02-MINIMAL",
+                    "error": "Price List Item Code must be supplied",
+                    "hg_error_class": "InvalidPayloadError",
+                }
+            ]
+        }
+
     def test_handles_multiple_records_in_order(self, batch_sink):
         records = [
             _batch_record(batch_sink, external_id="FAKE-CUSTOMER-EXT-006", name="Fake Customer A"),

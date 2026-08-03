@@ -98,6 +98,67 @@ class TestRequestTimeouts:
         assert mock_post.call_args.kwargs["timeout"] == REQUEST_TIMEOUT
 
 
+class TestResponseErrorMessage:
+    def test_parses_validation_errors_from_elements(self, client):
+        response = MagicMock()
+        response.json.return_value = {
+            "Message": "A validation exception occurred",
+            "Elements": [
+                {
+                    "ValidationErrors": [
+                        {
+                            "Message": "Tracking Option cannot be archived because it is not in use."
+                        }
+                    ]
+                }
+            ],
+        }
+
+        assert client._response_error_message(response) == (
+            "Tracking Option cannot be archived because it is not in use."
+        )
+
+    def test_parses_validation_errors_from_payments(self, client):
+        response = MagicMock()
+        response.json.return_value = {
+            "Payments": [
+                {
+                    "ValidationErrors": [{"Message": "Payment amount exceeds amount outstanding"}]
+                }
+            ]
+        }
+
+        assert client._response_error_message(response) == (
+            "Payment amount exceeds amount outstanding"
+        )
+
+    @patch.object(XeroClient, "_make_request")
+    def test_create_payments_uses_put(self, mock_request, client):
+        mock_request.return_value = MagicMock(status_code=200)
+        payload = {"Payments": [{"Amount": 10.0}]}
+
+        client.create_payments(payload)
+
+        mock_request.assert_called_once_with(
+            "https://api.xero.com/api.xro/2.0/Payments?summarizeErrors=false",
+            "PUT",
+            data=payload,
+        )
+
+    @patch.object(XeroClient, "_make_request")
+    def test_post_manual_journal_uses_post(self, mock_request, client):
+        mock_request.return_value = MagicMock(status_code=200)
+        payload = {"ManualJournals": [{"Narration": "Test"}]}
+
+        client.post_manual_journal(payload)
+
+        mock_request.assert_called_once_with(
+            "https://api.xero.com/api.xro/2.0/ManualJournals?summarizeErrors=false",
+            "POST",
+            data=payload,
+        )
+
+
 class TestRateLimits:
     def test_raises_retriable_error_on_429(self, client):
         response = MagicMock(
@@ -133,4 +194,4 @@ class TestRateLimits:
         with pytest.raises(RetriableAPIError, match="problem=day"):
             client._make_request("https://api.xero.com/api.xro/2.0/Contacts", "GET")
 
-        mock_request.assert_called_once()
+        assert mock_request.call_count == 5

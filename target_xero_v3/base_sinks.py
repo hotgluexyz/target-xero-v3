@@ -88,32 +88,45 @@ class XeroBatchSink(HotglueBatchSink):
         self.logger.info(f"Processing {self.stream_name}")
         return self.xero_client.push(self.endpoint, {self.endpoint: payload_records})
 
+    def _has_validation_errors(self, item):
+        if item.get("HasValidationErrors"):
+            return True
+        if item.get("StatusAttributeString") == "ERROR":
+            return True
+        return bool(item.get("ValidationErrors"))
+
+    def _validation_error_message(self, item):
+        messages = [
+            error["Message"]
+            for error in item.get("ValidationErrors", [])
+            if error.get("Message")
+        ]
+        if messages:
+            return "; ".join(messages)
+        return item.get("StatusAttributeString") or "Validation failed"
+
+    def _state_update_from_item(self, item, record_payload, external_id):
+        if self._has_validation_errors(item):
+            return {
+                "success": False,
+                "externalId": external_id,
+                "error": self._validation_error_message(item),
+                "hg_error_class": InvalidPayloadError.__name__,
+            }
+        state = {
+            "id": item.get(self.id_field),
+            "externalId": external_id,
+            "success": True,
+        }
+        if record_payload.get("operation") == "update":
+            state["is_updated"] = True
+        return state
+
     def handle_batch_response(self, response, records):
         state_updates = []
         items = response.json().get(self.endpoint, [])
         for i, item in enumerate(items):
             record_payload = records[i] if i < len(records) else {}
             external_id = record_payload.get(self.record_type, {}).get("externalId")
-            if item.get("HasValidationErrors"):
-                state_updates.append(
-                    {
-                        "success": False,
-                        "externalId": external_id,
-                        "error": "; ".join(
-                            error["Message"]
-                            for error in item.get("ValidationErrors", [])
-                        ),
-                        "hg_error_class": InvalidPayloadError.__name__,
-                    }
-                )
-            else:
-                state = {
-                    "id": item.get(self.id_field),
-                    "externalId": external_id,
-                    "success": True,
-                }
-                if record_payload.get("operation") == "update":
-                    state["is_updated"] = True
-                state_updates.append(state)
-
+            state_updates.append(self._state_update_from_item(item, record_payload, external_id))
         return {"state_updates": state_updates}

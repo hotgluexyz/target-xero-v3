@@ -35,7 +35,8 @@ class BaseMapper:
                 (
                     xero_record
                     for xero_record in reference_list
-                    if str(xero_record[mapping["xero_field"]]) == str(record_id)
+                    if xero_record.get(mapping["xero_field"]) is not None
+                    and str(xero_record[mapping["xero_field"]]) == str(record_id)
                 ),
                 None,
             )

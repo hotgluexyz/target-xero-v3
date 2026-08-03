@@ -1,3 +1,4 @@
+from requests.exceptions import SSLError
 import json
 from base64 import b64encode
 from datetime import datetime, timedelta, timezone
@@ -8,12 +9,17 @@ import pytz
 import requests
 from hotglue_etl_exceptions import InvalidCredentialsError
 from hotglue_singer_sdk.exceptions import RetriableAPIError
+import backoff
 
 
 BASE_URL = "https://api.xero.com/api.xro/2.0"
 REQUEST_TIMEOUT = 300
 
 CREDENTIAL_ERROR_STATUS_CODES = {401, 403}
+
+
+def escape_xero_string(value: str) -> str:
+    return str(value).replace('"', '\\"')
 
 
 def update_config_file(config, config_path):
@@ -82,18 +88,81 @@ class XeroClient:
         url = join(BASE_URL, resource)
         response = self._make_request(url, "GET", params=params)
         if response.status_code >= 400:
-            return []
+            raise Exception(
+                f"Error when making request: GET {url}: {response.status_code} "
+                f"{self._response_error_message(response)}"
+            )
         body = response.json()
         for key in (resource, f"{resource}s", tap_stream_id):
             if key in body:
                 return body[key]
         return []
 
+    def _build_where_clause(self, xero_field, value, filter_type):
+        if filter_type == "guid":
+            return f'{xero_field}==Guid("{value}")'
+        escaped = escape_xero_string(value)
+        return f'{xero_field}=="{escaped}"'
+
+    def get_existing_entities_for_records(
+        self,
+        tap_stream_id,
+        records,
+        filter_mappings,
+        id_field=None,
+    ):
+        entities = []
+        seen = set()
+        for mapping in filter_mappings:
+            field_from = mapping["field_from"]
+            xero_field = mapping["xero_field"]
+            filter_type = mapping.get("filter_type", "string")
+            values = {
+                record.get(field_from)
+                for record in records
+                if record.get(field_from) is not None
+            }
+            for value in values:
+                where = self._build_where_clause(xero_field, value, filter_type)
+                for match in self.filter(tap_stream_id, where=where) or []:
+                    entity_key = match.get(id_field) if id_field else None
+                    dedupe_key = entity_key or id(match)
+                    if dedupe_key in seen:
+                        continue
+                    seen.add(dedupe_key)
+                    entities.append(match)
+        return entities
+
     def push(self, tap_stream_id, payload):
         resource = tap_stream_id.title().replace("_", "")
         url = join(BASE_URL, f"{resource}?summarizeErrors=false")
         return self._make_request(url, "POST", data=payload)
 
+    def create_payments(self, payload):
+        url = join(BASE_URL, "Payments?summarizeErrors=false")
+        return self._make_request(url, "PUT", data=payload)
+
+    def post_manual_journal(self, payload):
+        url = join(BASE_URL, "ManualJournals?summarizeErrors=false")
+        return self._make_request(url, "POST", data=payload)
+
+    def create_tracking_option(self, tracking_category_id, payload):
+        url = join(BASE_URL, f"TrackingCategories/{tracking_category_id}/Options")
+        return self._make_request(url, "PUT", data=payload)
+
+    def update_tracking_option(self, tracking_category_id, tracking_option_id, payload):
+        url = join(
+            BASE_URL,
+            f"TrackingCategories/{tracking_category_id}/Options/{tracking_option_id}",
+        )
+        return self._make_request(url, "POST", data=payload)
+
+    @backoff.on_exception(backoff.expo, (
+        RetriableAPIError,
+        SSLError,
+        ConnectionError,
+        TimeoutError
+        ), max_tries=5)
     def _make_request(self, url, method, data=None, params=None, headers=None):
         self.refresh_credentials()
         request_headers = {
@@ -151,11 +220,29 @@ class XeroClient:
             f"Error: {self._response_error_message(response)}"
         )
 
+    def _validation_error_messages(self, response_json):
+        messages = []
+        for element in response_json.get("Elements") or []:
+            messages.extend(self._validation_errors_from_item(element))
+        for key in ("Contacts", "Items", "Invoices", "Payments", "Options", "TrackingCategories"):
+            for item in response_json.get(key) or []:
+                messages.extend(self._validation_errors_from_item(item))
+        return messages
+
+    def _validation_errors_from_item(self, item):
+        return [
+            error["Message"]
+            for error in item.get("ValidationErrors", [])
+            if error.get("Message")
+        ]
+
     def _response_error_message(self, response):
         try:
             response_json = response.json()
         except Exception:
             response_json = {}
+        if validation_messages := self._validation_error_messages(response_json):
+            return "; ".join(validation_messages)
         return (
             response_json.get("error_description")
             or response_json.get("error")
