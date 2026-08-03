@@ -194,4 +194,4 @@ class TestRateLimits:
         with pytest.raises(RetriableAPIError, match="problem=day"):
             client._make_request("https://api.xero.com/api.xro/2.0/Contacts", "GET")
 
-        mock_request.assert_called_once()
+        assert mock_request.call_count == 5
