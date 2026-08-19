@@ -3,6 +3,7 @@ import json
 from base64 import b64encode
 from datetime import datetime, timedelta, timezone
 from os.path import join
+from uuid import UUID
 
 import jwt
 import pytz
@@ -123,6 +124,12 @@ class XeroClient:
                 if record.get(field_from) is not None
             }
             for value in values:
+                # Skip non-UUIDs: Xero Guid() 400s and this lookup runs before per-record try/except.
+                if filter_type == "guid":
+                    try:
+                        UUID(str(value))
+                    except ValueError:
+                        continue
                 where = self._build_where_clause(xero_field, value, filter_type)
                 for match in self.filter(tap_stream_id, where=where) or []:
                     entity_key = match.get(id_field) if id_field else None
