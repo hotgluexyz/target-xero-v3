@@ -5,6 +5,7 @@ from hotglue_singer_sdk.helpers.capabilities import AlertingLevel
 from hotglue_singer_sdk.target_sdk.target import TargetHotglue
 
 from target_xero_v3.client import XeroClient
+from target_xero_v3.sinks.account_sink import AccountSink
 from target_xero_v3.sinks.bill_payment_sink import BillPaymentSink
 from target_xero_v3.sinks.bill_sink import BillSink
 from target_xero_v3.sinks.class_sink import ClassSink
@@ -34,6 +35,7 @@ class TargetXero(TargetHotglue):
     ).to_dict()
 
     SINK_TYPES = [
+        AccountSink,
         CustomerSink,
         VendorSink,
         ItemSink,
@@ -69,6 +71,7 @@ class TargetXero(TargetHotglue):
     def get_reference_data(self):
         self.logger.info("Reading data from API...")
         return {
+            "Accounts": self.xero_client.filter("Accounts") or [],
             "Currencies": self.xero_client.filter("Currencies") or [],
             "Organisation": self.xero_client.filter("Organisation") or [],
         }
