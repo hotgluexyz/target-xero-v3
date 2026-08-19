@@ -168,6 +168,7 @@ class AccountSink(XeroBatchSink):
                         "id": mapped.get(self.id_field),
                         "externalId": external_id,
                         "success": True,
+                        "existing": True,
                     }
                 )
                 continue

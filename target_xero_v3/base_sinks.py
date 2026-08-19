@@ -53,7 +53,12 @@ class XeroBatchSink(HotglueBatchSink):
             response = self.make_batch_request(records)
             result = self.handle_batch_response(response, records)
             for i, state_update in enumerate(result.get("state_updates", [])):
-                self.update_state(state_update, record=records[i].get(self.record_type))
+                is_duplicate = bool(state_update.pop("existing", False))
+                self.update_state(
+                    state_update,
+                    is_duplicate=is_duplicate,
+                    record=records[i].get(self.record_type),
+                )
         except InvalidCredentialsError as e:
             self._write_credential_error_state(raw_records, str(e))
             raise
