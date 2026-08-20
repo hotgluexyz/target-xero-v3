@@ -3,6 +3,7 @@ import json
 from base64 import b64encode
 from datetime import datetime, timedelta, timezone
 from os.path import join
+from uuid import UUID
 
 import jwt
 import pytz
@@ -123,6 +124,12 @@ class XeroClient:
                 if record.get(field_from) is not None
             }
             for value in values:
+                # Skip non-UUIDs: Xero Guid() 400s and this lookup runs before per-record try/except.
+                if filter_type == "guid":
+                    try:
+                        UUID(str(value))
+                    except ValueError:
+                        continue
                 where = self._build_where_clause(xero_field, value, filter_type)
                 for match in self.filter(tap_stream_id, where=where) or []:
                     entity_key = match.get(id_field) if id_field else None
@@ -144,6 +151,14 @@ class XeroClient:
 
     def post_manual_journal(self, payload):
         url = join(BASE_URL, "ManualJournals?summarizeErrors=false")
+        return self._make_request(url, "POST", data=payload)
+
+    def create_account(self, payload):
+        url = join(BASE_URL, "Accounts")
+        return self._make_request(url, "PUT", data=payload)
+
+    def update_account(self, account_id, payload):
+        url = join(BASE_URL, f"Accounts/{account_id}")
         return self._make_request(url, "POST", data=payload)
 
     def create_tracking_option(self, tracking_category_id, payload):
@@ -224,7 +239,15 @@ class XeroClient:
         messages = []
         for element in response_json.get("Elements") or []:
             messages.extend(self._validation_errors_from_item(element))
-        for key in ("Contacts", "Items", "Invoices", "Payments", "Options", "TrackingCategories"):
+        for key in (
+            "Accounts",
+            "Contacts",
+            "Items",
+            "Invoices",
+            "Payments",
+            "Options",
+            "TrackingCategories",
+        ):
             for item in response_json.get(key) or []:
                 messages.extend(self._validation_errors_from_item(item))
         return messages
