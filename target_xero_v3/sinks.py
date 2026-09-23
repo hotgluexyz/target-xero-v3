@@ -40,7 +40,8 @@ class XeroSink:
         self._valid_account_codes = set()
         self.cat_list = []
         self.tax_list = []
-        self.contacts_cache = []
+        if not hasattr(target, "contacts_cache"):
+            target.contacts_cache = []
         self.aus_uk_nz = bool(self.config.get("aus_nz_uk"))
         # Default set to true for Tessaract test it more easyily.
 
@@ -120,6 +121,10 @@ class XeroSink:
             client = self.get_client()
             self.cat_list = client.filter("Tracking_Categories")
         return self.cat_list
+
+    @property
+    def contacts_cache(self):
+        return self._target.contacts_cache
 
     def save_contact_to_cache(self, contact):
         self.contacts_cache.append({
@@ -488,6 +493,7 @@ class CustomerSink(XeroSink, HotglueBatchSink):
                     if res["HasValidationErrors"]:
                         results.append({"success": False})
                     else:
+                        self.save_contact_to_cache(res)
                         results.append({"success": True, "id": res.get("ContactID")})
             elif "Type" in response:
                 if response["Type"] == "ValidationException":
