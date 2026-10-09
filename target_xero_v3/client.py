@@ -1,5 +1,6 @@
 from requests.exceptions import SSLError
 import json
+import time
 from base64 import b64encode
 from datetime import datetime, timedelta, timezone
 from os.path import join
@@ -17,6 +18,9 @@ BASE_URL = "https://api.xero.com/api.xro/2.0"
 REQUEST_TIMEOUT = 300
 
 CREDENTIAL_ERROR_STATUS_CODES = {401, 403}
+
+# Xero's minute/concurrent limits reset within a minute; the daily limit does not, so it is not waited on.
+MAX_RATE_LIMIT_WAIT_SECONDS = 60
 
 
 def escape_xero_string(value: str) -> str:
@@ -198,6 +202,7 @@ class XeroClient:
             timeout=REQUEST_TIMEOUT,
         )
         if res.status_code == 429:
+            self._wait_for_rate_limit(res)
             self._raise_for_rate_limit(res)
         if res.status_code >= 400:
             self.logger.error(
@@ -205,6 +210,16 @@ class XeroClient:
             )
         self._raise_for_credential_errors(res)
         return res
+
+    def _wait_for_rate_limit(self, response):
+        """Sleep for Retry-After so the next backoff attempt lands in a fresh rate-limit window."""
+        if response.headers.get("X-Rate-Limit-Problem") == "day":
+            return
+        try:
+            retry_after = float(response.headers.get("Retry-After"))
+        except (TypeError, ValueError):
+            return
+        time.sleep(min(max(retry_after, 0), MAX_RATE_LIMIT_WAIT_SECONDS))
 
     def _raise_for_rate_limit(self, response):
         problem = response.headers.get("X-Rate-Limit-Problem", "unknown")

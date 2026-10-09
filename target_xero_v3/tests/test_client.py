@@ -195,3 +195,44 @@ class TestRateLimits:
             client._make_request("https://api.xero.com/api.xro/2.0/Contacts", "GET")
 
         assert mock_request.call_count == 5
+
+    @patch("target_xero_v3.client.time.sleep")
+    @patch.object(XeroClient, "refresh_credentials")
+    @patch("target_xero_v3.client.requests.request")
+    def test_make_request_waits_retry_after_on_minute_limit(
+        self, mock_request, _refresh, mock_sleep, client
+    ):
+        rate_limited = MagicMock(
+            status_code=429,
+            headers={"Retry-After": "30", "X-Rate-Limit-Problem": "minute"},
+            reason="Too Many Requests",
+            text="",
+        )
+        ok = MagicMock(status_code=200)
+        mock_request.side_effect = [rate_limited, ok]
+
+        response = client._make_request("https://api.xero.com/api.xro/2.0/Contacts", "GET")
+
+        assert response is ok
+        assert mock_request.call_count == 2
+        mock_sleep.assert_any_call(30.0)
+
+    @patch("target_xero_v3.client.time.sleep")
+    def test_wait_for_rate_limit_caps_wait(self, mock_sleep, client):
+        response = MagicMock(
+            headers={"Retry-After": "3600", "X-Rate-Limit-Problem": "concurrent"}
+        )
+
+        client._wait_for_rate_limit(response)
+
+        mock_sleep.assert_called_once_with(60)
+
+    @patch("target_xero_v3.client.time.sleep")
+    def test_wait_for_rate_limit_skips_day_limit(self, mock_sleep, client):
+        response = MagicMock(
+            headers={"Retry-After": "40000", "X-Rate-Limit-Problem": "day"}
+        )
+
+        client._wait_for_rate_limit(response)
+
+        mock_sleep.assert_not_called()
